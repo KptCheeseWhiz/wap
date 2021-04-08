@@ -1,0 +1,61 @@
+{
+  "name": "wap-frontend",
+  "version": "1.0.0",
+  "description": "web anime player frontend",
+  "author": "kptcheesewhiz",
+  "license": "ISC",
+  "scripts": {
+    "prebuild": "shx rm -rf ./out",
+    "build": "react-scripts build",
+    "postbuild": "shx mv ./build ./out",
+    "predeploy": "shx rm -rf ../backend/src/public",
+    "deploy": "shx cp -R ./out ../backend/src/public",
+    "start": "react-scripts start",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "format": "prettier --write \"{src,public}/**/*.{ts,js}\""
+  },
+  "dependencies": {
+    "@material-ui/core": "^4.11.0",
+    "@material-ui/icons": "^4.9.1",
+    "@material-ui/lab": "^4.0.0-alpha.56",
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.5.0",
+    "@testing-library/user-event": "^7.2.1",
+    "file-saver": "^2.0.5",
+    "lodash": "^4.17.21",
+    "notistack": "^1.0.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-material-ui-carousel": "^2.1.1",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "^4.0.0",
+    "typescript": "^3.7.5"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.1",
+    "@types/lodash": "^4.14.161",
+    "@types/node": "^12.12.56",
+    "@types/react": "^16.9.49",
+    "@types/react-dom": "^16.9.8",
+    "@types/react-router-dom": "^5.1.5",
+    "prettier": "^2.2.1",
+    "shx": "^0.3.3"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:5000"
+}

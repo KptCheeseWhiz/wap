@@ -1,0 +1,3 @@
+torrents
+/src/public/*
+!/src/public/.gitkeep

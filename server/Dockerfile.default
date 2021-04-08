@@ -1,0 +1,57 @@
+### BACKEND
+FROM node:fermium-alpine AS backend
+
+RUN apk --no-cache add git
+
+# Prepare our working directory
+RUN mkdir /app
+WORKDIR /app
+
+# Copy package.json & package-lock.json and install before builing to avoid having to reinstall everything on each build
+COPY ./backend/package* /app/
+RUN npm install
+
+# Build the application in /app/out
+COPY ./backend/ /app/
+RUN touch /app/src/.env
+RUN npm run build
+
+### FRONTEND
+FROM node:fermium-alpine AS frontend
+
+# Prepare our working directory
+RUN mkdir /app
+WORKDIR /app
+
+# Copy package.json & package-lock.json and install before builing to avoid having to reinstall everything on each build
+COPY --chown=node:node ./frontend/package* /app/
+RUN npm install
+
+# Build the application in /app/out
+COPY --chown=node:node ./frontend/ /app/
+RUN npm run build
+
+### FINAL BUILD
+FROM node:fermium-alpine
+
+RUN mkdir /app
+WORKDIR /app
+
+ENV NODE_ENV production
+
+# Copy the node_modules instead of reinstalling to save some time
+COPY --from=backend /app/node_modules /app/node_modules
+
+COPY --from=backend /app/out /app/
+# Place the frontend in the serving folder of the backend
+RUN rm -rf /app/public || true
+COPY --from=frontend /app/out /app/public/
+
+# Clear dev package from the node_modules
+RUN npm prune
+
+RUN mkdir /app/torrents
+RUN chown node:node /app/torrents
+
+USER node
+CMD [ "npm", "run", "start:docker" ]

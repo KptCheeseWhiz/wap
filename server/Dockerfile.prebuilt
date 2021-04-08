@@ -1,0 +1,21 @@
+FROM node:fermium-alpine
+
+RUN apk --no-cache add git
+
+RUN mkdir /app
+WORKDIR /app
+
+ENV NODE_ENV production
+
+COPY ./backend/out /app/
+
+RUN rm -rf /app/public || true
+COPY ./frontend/out /app/public
+
+RUN npm install
+
+RUN mkdir /app/torrents
+RUN chown node:node /app/torrents
+
+USER node
+CMD [ "npm", "run", "start:docker" ]

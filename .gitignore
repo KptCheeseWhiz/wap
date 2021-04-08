@@ -1,0 +1,9 @@
+/docker-compose.override.yml
+/**/node_modules
+/**/data/*
+/**/build
+/**/out
+/**/dist
+/**/dist-*
+/**/.env
+!/server/frontend/.env

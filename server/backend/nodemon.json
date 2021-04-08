@@ -1,0 +1,9 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["src/**/*.spec.ts"],
+  "events": {
+    "start": "shx rm -rf ./out && shx mkdir -p out && shx cp -R src/.env src/public out/",
+    "restart": "shx cp -R src/public out/public"
+  }
+}
