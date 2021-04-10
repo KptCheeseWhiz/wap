@@ -14,7 +14,6 @@ dotenv_config({ path: path_join(__dirname, ".env") });
 import bootstrap from "./app/app";
 import * as exception from "./utils/exception";
 import * as vlc from "./utils/vlc";
-import * as cni from "./utils/checknetisolation";
 
 exception.on();
 
@@ -41,16 +40,9 @@ if (!fs_exists(HOME)) fs_mkdir(HOME);
     .then((app: any) => app.getUrl())
     .then((url: string) => Number(url.toString().split(":").pop()));
 
-  if (!(await vlc.is_installed())) {
-    await electron.dialog.showMessageBox(null, {
-      title: "VLC is missing",
-      message: "This application requires VLC to run, please install it.",
-    });
-
-    await vlc.refer().catch(() => {});
-    process.exit(0);
-  } else if (process.platform === "win32")
-    if (!(await cni.is_exempt())) await cni.exempt();
+  if (!vlc.is_installed()) {
+    if (!(await vlc.install())) process.exit(0);
+  }
 
   const createWindow = () => {
     const mainWindow = new electron.BrowserWindow({
