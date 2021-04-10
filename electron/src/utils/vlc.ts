@@ -23,8 +23,20 @@ export const install = async (): Promise<boolean> => {
     return false;
   }
 
+  let arch = "";
+  switch (process.arch) {
+    case "x64":
+      arch = "64";
+      break;
+    case "x32":
+      arch = "32";
+      break;
+    default:
+      throw new Error("Unsupported architecture " + process.arch);
+  }
+
   await fetch(
-    "https://get.videolan.org/vlc/3.0.12/win64/vlc-3.0.12-win64.zip"
+    `https://get.videolan.org/vlc/3.0.12/win${arch}/vlc-3.0.12-win${arch}.zip`
   ).then(
     (res) =>
       new Promise<void>((resolve, reject) =>
@@ -34,7 +46,7 @@ export const install = async (): Promise<boolean> => {
           .once("close", () => resolve())
       )
   );
-  
+
   return true;
 };
 
