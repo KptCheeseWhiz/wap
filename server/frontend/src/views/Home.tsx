@@ -11,7 +11,7 @@ function Home() {
   const history = useHistory();
 
   const onClick = (route: string) => (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     storage.set("gotit", "yes");
@@ -39,9 +39,13 @@ function Home() {
         <Typography variant="h5" style={{ marginTop: 10 }}>
           The stream links only work if you follow the instructions...
           <li>
-            For Windows users: install{" "}
+            For Windows users: run{" "}
+            <Link download href="/wap.reg">
+              this
+            </Link>{" "}
+            and install{" "}
             <Link
-              href="ms-windows-store://pdp?productId=9NBLGGH4VVNH"
+              href="https://get.videolan.org/vlc/last/win64/"
               target="_blank"
             >
               VLC

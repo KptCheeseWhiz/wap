@@ -20,7 +20,7 @@ import {
 import LoadingButton from "components/DownloadingButton";
 
 import { torrent_files } from "helpers/api";
-import { dlurl, streamurl } from "helpers/url";
+import { toPayloadQuery } from "helpers/fetch";
 
 function TorrentRow({
   torrent,
@@ -73,14 +73,14 @@ function TorrentRow({
     window.open(url, "_blank", "noopener noreferrer");
   };
 
-  const pldl = dlurl("/api/torrent/playlist", {
-    magnet: torrent.magnet,
-    sig: torrent.sig,
-  });
-  const plstream = streamurl("/api/torrent/playlist", {
-    magnet: torrent.magnet,
-    sig: torrent.sig,
-  });
+  const pldl = toPayloadQuery(
+    window.location.origin + "/api/torrent/playlist",
+    {
+      magnet: torrent.magnet,
+      sig: torrent.sig,
+    },
+  );
+  const plstream = "vlc://" + pldl;
 
   return (
     <>
@@ -119,16 +119,24 @@ function TorrentRow({
                 {files && (
                   <>
                     {files.map((file, i) => {
-                      const filedl = dlurl("/api/torrent/download", {
-                        magnet: torrent.magnet,
-                        filepath: file.path,
-                        sig: torrent.sig,
-                      });
-                      const filestream = streamurl("/api/torrent/playone", {
-                        magnet: torrent.magnet,
-                        filepath: file.path,
-                        sig: torrent.sig,
-                      });
+                      const filedl = toPayloadQuery(
+                        window.location.origin + "/api/torrent/download",
+                        {
+                          magnet: torrent.magnet,
+                          filepath: file.path,
+                          sig: torrent.sig,
+                        },
+                      );
+                      const filestream =
+                        "vlc://" +
+                        toPayloadQuery(
+                          window.location.origin + "/api/torrent/playone",
+                          {
+                            magnet: torrent.magnet,
+                            filepath: file.path,
+                            sig: torrent.sig,
+                          },
+                        );
 
                       return (
                         <TableRow key={"file" + i}>

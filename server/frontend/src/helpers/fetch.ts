@@ -40,4 +40,9 @@ export const toQuery = (base: string, qs: any = {}) => {
   return base + "?" + url.toString();
 };
 
+export const toPayloadQuery = (base: string, qs: any = {}) =>
+  base +
+  "?payload=" +
+  encodeURIComponent(btoa(encodeURIComponent(JSON.stringify(qs))));
+
 export default fetch;
