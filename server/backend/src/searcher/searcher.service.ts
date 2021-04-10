@@ -161,9 +161,9 @@ export class SearcherService {
           .querySelector("a:first-child")
           ?.getAttribute("href");
 
-        const magnet = tds[2]
-          .querySelector("a:last-child")
-          ?.getAttribute("href");
+        const magnet = decodeURIComponent(
+          tds[2].querySelector("a:last-child")?.getAttribute("href"),
+        );
         const size = tds[3].textContent;
         const date = new Date(
           Number(tds[4].getAttribute("data-timestamp") + "000"),

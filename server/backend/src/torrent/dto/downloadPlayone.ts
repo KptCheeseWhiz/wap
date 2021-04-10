@@ -1,6 +1,6 @@
-import { IsMagnetURI, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsMagnetURI, IsNotEmpty, IsString } from "class-validator";
 
-export class DownloadFileDto {
+export class DownloadPlayoneDto {
   @IsMagnetURI()
   @IsNotEmpty()
   readonly magnet: string;
@@ -8,10 +8,6 @@ export class DownloadFileDto {
   @IsString()
   @IsNotEmpty()
   readonly filepath: string;
-
-  @IsOptional()
-  @IsString()
-  readonly disposition?: string;
 
   @IsString()
   @IsNotEmpty()

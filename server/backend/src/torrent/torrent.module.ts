@@ -23,6 +23,7 @@ export class TorrentModule implements NestModule {
       .forRoutes(
         { path: "/api/torrent/download", method: RequestMethod.GET },
         { path: "/api/torrent/playlist", method: RequestMethod.GET },
+        { path: "/api/torrent/playone", method: RequestMethod.GET },
       );
   }
 }

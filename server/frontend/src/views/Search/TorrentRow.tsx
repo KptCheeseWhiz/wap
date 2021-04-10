@@ -44,9 +44,9 @@ function TorrentRow({
   const { enqueueSnackbar } = useSnackbar();
 
   const [open, setOpen] = useState<boolean>(false);
-  const [files, setFiles] = useState<{ name: string; size: number }[] | null>(
-    null
-  );
+  const [files, setFiles] = useState<
+    { name: string; path: string; size: number }[] | null
+  >(null);
 
   useEffect(() => {
     setOpen(false);
@@ -67,7 +67,7 @@ function TorrentRow({
   };
 
   const onClick = (url: string) => (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     window.open(url, "_blank", "noopener noreferrer");
@@ -121,18 +121,18 @@ function TorrentRow({
                     {files.map((file, i) => {
                       const filedl = dlurl("/api/torrent/download", {
                         magnet: torrent.magnet,
-                        filename: file.name,
+                        filepath: file.path,
                         sig: torrent.sig,
                       });
-                      const filestream = streamurl("/api/torrent/download", {
+                      const filestream = streamurl("/api/torrent/playone", {
                         magnet: torrent.magnet,
-                        filename: file.name,
+                        filepath: file.path,
                         sig: torrent.sig,
                       });
 
                       return (
                         <TableRow key={"file" + i}>
-                          <TableCell>{file.name}</TableCell>
+                          <TableCell>{file.path}</TableCell>
                           <TableCell>
                             {(file.size / 1048576).toFixed() + " MiB"}
                           </TableCell>

@@ -249,12 +249,12 @@ class TorrentWorker {
 
   async download({
     magnet,
-    filename,
+    filepath,
     start,
     end,
   }: {
     magnet: string;
-    filename: string;
+    filepath: string;
     start: number;
     end: number;
   }) {
@@ -298,10 +298,10 @@ class TorrentWorker {
             ),
           ));
 
-        const file = torrent.files.find((file) => file.name === filename);
+        const file = torrent.files.find((file) => file.path === filepath);
         if (!file)
           return reject(
-            new Error(`File ${file} not found in ${magnetUri.infoHash}`),
+            new Error(`File ${filepath} not found in ${magnetUri.infoHash}`),
           );
 
         if (!file.managed) {
@@ -310,7 +310,7 @@ class TorrentWorker {
           file.handles = 0;
           file.uploaded = 0;
 
-          Logger(this._id).log(`${torrent.infoHash} ${filename} added`);
+          Logger(this._id).log(`${torrent.infoHash} ${filepath} added`);
         }
         file.expiresAt = new Date(Date.now() + TORRENT_EXPIRATION);
         file.handles++;
@@ -369,7 +369,11 @@ class TorrentWorker {
     }
   }
 
-  async files({ magnet }: { magnet: string }) {
+  async files({
+    magnet,
+  }: {
+    magnet: string;
+  }): Promise<{ name: string; path: string; size: number }[]> {
     try {
       this._pending++;
 
@@ -383,8 +387,9 @@ class TorrentWorker {
 
       const torrent = this._dlclient.get(magnet) || this._flclient.get(magnet);
       if (torrent) {
-        const files = torrent.files.map(({ name, length: size }) => ({
+        const files = torrent.files.map(({ name, path, length: size }) => ({
           name,
+          path,
           size,
         }));
         Logger(this._id).log(
@@ -393,7 +398,7 @@ class TorrentWorker {
         return files;
       }
 
-      return await new Promise<{ name: string; size: number }[]>(
+      return await new Promise<{ name: string; path: string; size: number }[]>(
         (resolve, reject) => {
           const timeout = setTimeout(() => {
             if (this._flclient.get(magnet)) this._flclient.remove(magnet);
@@ -412,6 +417,7 @@ class TorrentWorker {
               torrent.deselect(0, torrent.pieces.length - 1, 0);
               const files = torrent.files.map((file) => ({
                 name: file.name,
+                path: file.path,
                 size: file.length,
               }));
 

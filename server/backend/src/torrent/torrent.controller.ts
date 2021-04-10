@@ -16,6 +16,7 @@ import { DownloadFileDto } from "./dto/downloadFile.dto";
 import { ListFilesDto } from "./dto/listFiles.dto";
 import { TorrentService } from "./torrent.service";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
+import { DownloadPlayoneDto } from "./dto/downloadPlayone";
 
 import { MagnetSignGuard } from "@/guards/magnetSign.guard";
 import { CacheTorrentGuard } from "@/guards/cacheTorrent.guard";
@@ -23,13 +24,6 @@ import { CacheTorrentGuard } from "@/guards/cacheTorrent.guard";
 @Controller("/api/torrent")
 export class TorrentController {
   constructor(private torrentService: TorrentService) {}
-
-  @Get("files")
-  @Header("content-type", "application/json")
-  @UseGuards(CacheTorrentGuard, MagnetSignGuard)
-  async listFiles(@Query() listFilesDto: ListFilesDto) {
-    return await this.torrentService.listFiles(listFilesDto);
-  }
 
   @Get("download")
   @Header("connection", "keep-alive")
@@ -59,7 +53,12 @@ export class TorrentController {
       }
     }
 
-    const { length, mime, stream } = await this.torrentService.downloadFile({
+    const {
+      length,
+      mime,
+      stream,
+      name,
+    } = await this.torrentService.downloadFile({
       ...downloadFileDto,
       start,
       end,
@@ -70,8 +69,7 @@ export class TorrentController {
     res.setHeader(
       "content-disposition",
       (downloadFileDto.disposition === "attachment" ? "attachment" : "inline") +
-        "; filename=" +
-        downloadFileDto.filename,
+        `; filename="${name}"`,
     );
     res.setHeader("content-type", mime);
     res.setHeader("content-length", end - start);
@@ -80,6 +78,13 @@ export class TorrentController {
     res.status(end - start === length ? 200 : 206);
 
     stream.pipe(res.on("close", () => stream.destroy()));
+  }
+
+  @Get("files")
+  @Header("content-type", "application/json")
+  @UseGuards(CacheTorrentGuard, MagnetSignGuard)
+  async listFiles(@Query() listFilesDto: ListFilesDto) {
+    return await this.torrentService.listFiles(listFilesDto);
   }
 
   @Get("playlist")
@@ -98,7 +103,27 @@ export class TorrentController {
       },
     );
 
-    res.setHeader("content-disposition", "inline; filename=" + filename);
+    res.setHeader("content-disposition", `inline; filename="${filename}"`);
+    res.send(content);
+  }
+
+  @Get("playone")
+  @Header("content-type", "audio/x-mpegurl")
+  @UseGuards(MagnetSignGuard)
+  async downloadPlayone(
+    @Query() downloadPlayone: DownloadPlayoneDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const { filename, content } = await this.torrentService.downloadPlayone(
+      downloadPlayone,
+      {
+        proto: (req.headers["x-forwarded-proto"] || "http") as string,
+        host: (req.headers["x-forwarded-host"] || req.headers.host) as string,
+      },
+    );
+
+    res.setHeader("content-disposition", `inline; filename="${filename}"`);
     res.send(content);
   }
 
