@@ -11,8 +11,8 @@ export interface IState {
     engine: string;
     query: string;
     page: number;
-    sort: string;
-    order: string;
+    sort?: string;
+    order?: string;
   };
 }
 
@@ -43,8 +43,8 @@ export const initialState: IState = {
     engine: "nyaa",
     query: query.get("query") || "",
     page: Math.max(+(query.get("page") || 1), 1),
-    sort: query.get("sort") || "",
-    order: query.get("order") || "",
+    sort: query.get("sort") || undefined,
+    order: query.get("order") || undefined,
   },
 };
 
@@ -57,7 +57,7 @@ export function reducer(state: IState, action: IAction): IState {
         {},
         state,
         { search: { query: action.value } },
-        { search: { sort: "", order: "" } },
+        { search: { sort: undefined, order: undefined } },
       );
     case "SET_PAGE":
       return _merge({}, state, { search: { page: action.value } });
