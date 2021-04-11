@@ -7,7 +7,10 @@ export class DownloadFileDto {
 
   @IsString()
   @IsNotEmpty()
-  readonly filepath: string;
+  readonly name: string;
+
+  @IsString()
+  readonly path: string;
 
   @IsOptional()
   @IsString()

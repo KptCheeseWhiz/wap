@@ -249,12 +249,14 @@ class TorrentWorker {
 
   async download({
     magnet,
-    filepath,
+    name,
+    path,
     start,
     end,
   }: {
     magnet: string;
-    filepath: string;
+    name: string;
+    path: string;
     start: number;
     end: number;
   }) {
@@ -265,13 +267,9 @@ class TorrentWorker {
       if (!magnetUri.infoHash) throw new Error("Invalid magnet");
       (magnetUri as any).so = "-1";
 
-      const path = path_join(TORRENT_PATH, magnetUri.infoHash);
-
       return await new Promise<{
         mime: string;
         length: number;
-        name: string;
-        path: string;
         infoHash: string;
         port: MessagePort;
         _transferList: TransferListItem[];
@@ -282,7 +280,7 @@ class TorrentWorker {
             this._dlclient.add(
               parseTorrent.toMagnetURI(magnetUri),
               {
-                path,
+                path: path_join(TORRENT_PATH, magnetUri.infoHash),
               },
               async (torrent) => {
                 torrent.files.forEach((file) => file.deselect());
@@ -298,10 +296,11 @@ class TorrentWorker {
             ),
           ));
 
-        const file = torrent.files.find((file) => file.path === filepath);
+          const fullpath = path_join(path, name);
+        const file = torrent.files.find((file) => file.path === fullpath);
         if (!file)
           return reject(
-            new Error(`File ${filepath} not found in ${magnetUri.infoHash}`),
+            new Error(`File ${fullpath} not found in ${magnetUri.infoHash}`),
           );
 
         if (!file.managed) {
@@ -310,7 +309,7 @@ class TorrentWorker {
           file.handles = 0;
           file.uploaded = 0;
 
-          Logger(this._id).log(`${torrent.infoHash} ${filepath} added`);
+          Logger(this._id).log(`${torrent.infoHash} ${fullpath} added`);
         }
         file.expiresAt = new Date(Date.now() + TORRENT_EXPIRATION);
         file.handles++;
@@ -353,8 +352,6 @@ class TorrentWorker {
 
         resolve({
           mime: mime_lookup(file.path) || "application/octet-stream",
-          name: file.name,
-          path: file.path,
           length: file.length,
           infoHash: torrent.infoHash,
           port: port1,
@@ -389,7 +386,7 @@ class TorrentWorker {
       if (torrent) {
         const files = torrent.files.map(({ name, path, length: size }) => ({
           name,
-          path,
+          path: path.substr(0, path.length - name.length),
           size,
         }));
         Logger(this._id).log(
@@ -415,11 +412,13 @@ class TorrentWorker {
 
               torrent.files.forEach((file) => file.deselect());
               torrent.deselect(0, torrent.pieces.length - 1, 0);
-              const files = torrent.files.map((file) => ({
-                name: file.name,
-                path: file.path,
-                size: file.length,
-              }));
+              const files = torrent.files.map(
+                ({ name, path, length: size }) => ({
+                  name,
+                  path: path.substr(0, path.length - name.length),
+                  size,
+                }),
+              );
 
               await new Promise<void>((resolve, reject) =>
                 this._flclient.remove(magnet, { destroyStore: true }, (err) =>

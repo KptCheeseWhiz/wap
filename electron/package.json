@@ -13,7 +13,7 @@
     "prebuild": "shx rm -rf ./out && npm run build-backend",
     "build": "tsc",
     "postbuild": "shx cp -R package.json package-lock.json src/.env ./src/app ./out",
-    "build-and-install": "npm run build && (cd ./out && npm --prod i)",
+    "build-and-install": "npm run build && (cd ./out && npm --prod i && shx sed -i ENV=development ENV=production .env)",
     "predist": "shx rm -rf ./dist",
     "dist": "npm run build-and-install && npm run dist-electron",
     "postdist": "shx mv ./dist-electron ./dist",

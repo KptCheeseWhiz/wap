@@ -5,6 +5,7 @@ import {
   Headers,
   HttpException,
   HttpStatus,
+  Param,
   Query,
   Req,
   Res,
@@ -16,7 +17,6 @@ import { DownloadFileDto } from "./dto/downloadFile.dto";
 import { ListFilesDto } from "./dto/listFiles.dto";
 import { TorrentService } from "./torrent.service";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
-import { DownloadPlayoneDto } from "./dto/downloadPlayone";
 
 import { MagnetSignGuard } from "@/guards/magnetSign.guard";
 import { CacheTorrentGuard } from "@/guards/cacheTorrent.guard";
@@ -25,13 +25,14 @@ import { CacheTorrentGuard } from "@/guards/cacheTorrent.guard";
 export class TorrentController {
   constructor(private torrentService: TorrentService) {}
 
-  @Get("download")
+  @Get("download/:name")
   @Header("connection", "keep-alive")
   @Header("accept-ranges", "bytes")
   @UseGuards(MagnetSignGuard)
   async downloadFile(
     @Headers("range") range: string,
-    @Query() downloadFileDto: DownloadFileDto,
+    @Query() downloadFileDto: Omit<DownloadFileDto, "name">,
+    @Param("name") name: string,
     @Res() res: Response,
   ) {
     let start = 0,
@@ -57,9 +58,9 @@ export class TorrentController {
       length,
       mime,
       stream,
-      name,
     } = await this.torrentService.downloadFile({
       ...downloadFileDto,
+      name,
       start,
       end,
     });
@@ -97,26 +98,6 @@ export class TorrentController {
   ) {
     const { filename, content } = await this.torrentService.downloadPlaylist(
       downloadPlayListDto,
-      {
-        proto: (req.headers["x-forwarded-proto"] || "http") as string,
-        host: (req.headers["x-forwarded-host"] || req.headers.host) as string,
-      },
-    );
-
-    res.setHeader("content-disposition", `inline; filename="${filename}"`);
-    res.send(content);
-  }
-
-  @Get("playone")
-  @Header("content-type", "audio/x-mpegurl")
-  @UseGuards(MagnetSignGuard)
-  async downloadPlayone(
-    @Query() downloadPlayone: DownloadPlayoneDto,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
-    const { filename, content } = await this.torrentService.downloadPlayone(
-      downloadPlayone,
       {
         proto: (req.headers["x-forwarded-proto"] || "http") as string,
         host: (req.headers["x-forwarded-host"] || req.headers.host) as string,

@@ -24,15 +24,12 @@ export class ServiceWorkerService {
   async generate(): Promise<string> {
     if (this._cache) return this._cache;
     return (this._cache = `// This file is generated dynamically
-const cacheName = \`wap-pwa-${process.env.npm_package_version}\`;
-if (!/^wap-pwa-\\d+\\.\\d+\\.\\d$/.test(cacheName))
-  throw new Error("Invalid version");
+const cacheName = "wap-pwa"
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
-      .keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .delete(cacheName)
       .then(() =>
         caches
           .open(cacheName)

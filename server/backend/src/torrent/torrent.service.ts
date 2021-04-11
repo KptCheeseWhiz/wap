@@ -9,13 +9,12 @@ import * as parseTorrent from "parse-torrent";
 
 import { DownloadFileDto } from "./dto/downloadFile.dto";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
-import { DownloadPlayoneDto } from "./dto/downloadPlayone";
 import { ListFilesDto } from "./dto/listFiles.dto";
 
 import PortHelper from "@/common/port.helper";
 import { LockingReadable } from "@/common/chunked.helper";
 import Logger, { Context } from "@/common/logger.helper";
-import { fileExists, testFolder } from "@/common/utils.helper";
+import { fileExists, testFolder, toURL } from "@/common/utils.helper";
 
 let workerCount = 0;
 class TorrentWorkerBridge {
@@ -109,39 +108,31 @@ class TorrentWorkerBridge {
 
   async download({
     magnet,
-    filepath,
+    name,
+    path,
     start,
     end,
   }: {
     magnet: string;
-    filepath: string;
+    name: string;
+    path: string;
     start: number;
     end: number;
   }): Promise<{
     stream: Readable;
     mime: string;
     length: number;
-    name: string;
-    path: string;
     infoHash: string;
   }> {
-    const {
-      port,
-      mime,
-      length,
-      name,
-      path,
-      infoHash,
-    } = await this._mainPort.send<{
+    const { port, mime, length, infoHash } = await this._mainPort.send<{
       port: MessagePort;
       mime: string;
       length: number;
-      name: string;
-      path: string;
       infoHash: string;
     }>("download", {
       magnet,
-      filepath,
+      name,
+      path,
       start,
       end,
     });
@@ -173,8 +164,6 @@ class TorrentWorkerBridge {
       infoHash,
       length,
       mime,
-      name,
-      path,
     };
   }
 
@@ -279,15 +268,14 @@ export class TorrentService {
 
   async downloadFile({
     magnet,
-    filepath,
+    name,
+    path,
     start,
     end,
   }: DownloadFileDto & { start: number; end: number }): Promise<{
     stream: Readable;
     mime: string;
     length: number;
-    name: string;
-    path: string;
     infoHash: string;
   }> {
     if (!this._ready)
@@ -301,52 +289,15 @@ export class TorrentService {
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
     return (await this.findBest(magnetUri.infoHash)).download({
       magnet,
-      filepath,
+      name,
+      path,
       start,
       end,
     });
   }
 
-  async downloadPlayone(
-    { magnet, filepath, sig }: DownloadPlayoneDto,
-    options: { proto: string; host: string },
-  ) {
-    const magnetUri = parseTorrent(magnet);
-    if (!magnetUri)
-      throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
-
-    const files = await this.listFiles({ magnet, sig });
-
-    const file = files.find((file) => file.path === filepath);
-    if (!file)
-      throw new HttpException(
-        `File ${filepath} not found in ${magnetUri.infoHash}`,
-        HttpStatus.NOT_FOUND,
-      );
-
-    return {
-      filename: magnetUri.infoHash + ".m3u8",
-      content: [
-        "#EXTM3U",
-        "",
-        "#EXTINF:-1," + file.name,
-        options.proto +
-          "://" +
-          options.host +
-          "/api/torrent/download?payload=" +
-          Buffer.from(
-            JSON.stringify({
-              magnet,
-              filepath: file.path,
-              sig,
-            }),
-          ).toString("base64"),
-      ].join("\n"),
-    };
-  }
-
   async downloadPlaylist(
-    { magnet, filepath, sig }: DownloadPlaylistDto,
+    { magnet, name, path, sig }: DownloadPlaylistDto,
     options: { proto: string; host: string },
   ): Promise<{ filename: string; content: string }> {
     const magnetUri = parseTorrent(magnet);
@@ -355,8 +306,9 @@ export class TorrentService {
 
     const files = await this.listFiles({ magnet, sig });
 
-    if (filepath && files.findIndex((file) => file.path === filepath) !== -1)
-      while (files[0].path !== filepath)
+    const fullpath = path_join(path, name);
+    if (fullpath && files.findIndex((file) => file.path === fullpath) !== -1)
+      while (files[0].path !== fullpath)
         files.push(files.shift() as typeof files[0]);
 
     return {
@@ -367,17 +319,18 @@ export class TorrentService {
             ...acc,
             "",
             "#EXTINF:-1," + file.name,
-            options.proto +
-              "://" +
-              options.host +
-              "/api/torrent/download?payload=" +
-              Buffer.from(
-                JSON.stringify({
-                  magnet,
-                  filepath: file.path,
-                  sig,
-                }),
-              ).toString("base64"),
+            toURL(
+              options.proto +
+                "://" +
+                options.host +
+                "/api/torrent/download/" +
+                encodeURIComponent(file.name),
+              {
+                path: file.path,
+                magnet,
+                sig,
+              },
+            ),
           ],
           ["#EXTM3U"],
         ),

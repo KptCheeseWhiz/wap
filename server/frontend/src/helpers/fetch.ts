@@ -28,21 +28,20 @@ const fetch = async <T>(
 
 export const toURL = (base: string, qs: any = {}) => {
   const url = new URL(base);
-  for (let [k, v] of Object.entries(qs).filter(([_, v]) => !!v))
+  for (let [k, v] of Object.entries(qs).filter(
+    ([_, v]) => typeof v !== "undefined" && v !== null,
+  ))
     url.searchParams.append(k, (v as string | number).toString());
   return url.href;
 };
 
 export const toQuery = (base: string, qs: any = {}) => {
   const url = new URLSearchParams();
-  for (let [k, v] of Object.entries(qs).filter(([_, v]) => !!v))
+  for (let [k, v] of Object.entries(qs).filter(
+    ([_, v]) => typeof v !== "undefined" && v !== null,
+  ))
     url.append(k, (v as string | number).toString());
   return base + "?" + url.toString();
 };
-
-export const toPayloadQuery = (base: string, qs: any = {}) =>
-  base +
-  "?payload=" +
-  encodeURIComponent(btoa(encodeURIComponent(JSON.stringify(qs))));
 
 export default fetch;

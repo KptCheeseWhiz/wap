@@ -20,7 +20,7 @@ import {
 import LoadingButton from "components/DownloadingButton";
 
 import { torrent_files } from "helpers/api";
-import { toPayloadQuery } from "helpers/fetch";
+import { toURL } from "helpers/fetch";
 
 function TorrentRow({
   torrent,
@@ -73,13 +73,12 @@ function TorrentRow({
     window.open(url, "_blank", "noopener noreferrer");
   };
 
-  const pldl = toPayloadQuery(
-    window.location.origin + "/api/torrent/playlist",
-    {
-      magnet: torrent.magnet,
-      sig: torrent.sig,
-    },
-  );
+  const pldl = toURL(window.location.origin + "/api/torrent/playlist", {
+    name: "",
+    path: "",
+    magnet: torrent.magnet,
+    sig: torrent.sig,
+  });
   const plstream = "vlc://" + pldl;
 
   return (
@@ -119,28 +118,23 @@ function TorrentRow({
                 {files && (
                   <>
                     {files.map((file, i) => {
-                      const filedl = toPayloadQuery(
-                        window.location.origin + "/api/torrent/download",
+                      const filedl = toURL(
+                        window.location.origin +
+                          "/api/torrent/download/" +
+                          encodeURIComponent(file.name),
                         {
                           magnet: torrent.magnet,
-                          filepath: file.path,
+                          path: file.path,
                           sig: torrent.sig,
                         },
                       );
-                      const filestream =
-                        "vlc://" +
-                        toPayloadQuery(
-                          window.location.origin + "/api/torrent/playone",
-                          {
-                            magnet: torrent.magnet,
-                            filepath: file.path,
-                            sig: torrent.sig,
-                          },
-                        );
+                      const filestream = "vlc://" + filedl;
 
                       return (
                         <TableRow key={"file" + i}>
-                          <TableCell>{file.path}</TableCell>
+                          <TableCell>
+                            {(file.path ? file.path + "/" : "") + file.name}
+                          </TableCell>
                           <TableCell>
                             {(file.size / 1048576).toFixed() + " MiB"}
                           </TableCell>

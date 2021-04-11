@@ -3,6 +3,6 @@
   "ext": "ts,json",
   "ignore": ["src/**/*.spec.ts"],
   "events": {
-    "start": "shx rm -rf ./out && shx mkdir -p out && shx cp -R src/.env src/public out/"
+    "start": "shx mkdir -p out && shx cp src/.env out/.env"
   }
 }

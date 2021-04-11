@@ -8,8 +8,8 @@
 ### Run the web server in a standalone mode
 
 1. Run the `configure` command located at the root of the project
-2. Run `npm run build-frontend` in the `server/backend` folder
-3. Run `npm run start` in the `server/backend` folder
+2. Run `npm run dev` in the `server/frontend` folder
+3. In another console, run `npm run dev` in the `server/backend` folder
 4. The server will be available on `http://localhost:5000`
 
 ### Build the electron app
