@@ -18,7 +18,7 @@ export const testFolder = async (path: string): Promise<boolean> => {
       .then(() => true)
       .catch(() => false);
   return await fs.promises
-    .mkdir(fpath)
+    .mkdir(fpath, { recursive: true })
     .then(() => fs.promises.rmdir(fpath))
     .then(() => true)
     .catch(() => false);
