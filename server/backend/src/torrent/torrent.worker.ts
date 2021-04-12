@@ -296,7 +296,7 @@ class TorrentWorker {
             ),
           ));
 
-          const fullpath = path_join(path, name);
+        const fullpath = path_join(path, name);
         const file = torrent.files.find((file) => file.path === fullpath);
         if (!file)
           return reject(
@@ -449,7 +449,6 @@ class TorrentWorker {
         load: await this.load(),
         downloadSpeed: this._dlclient.downloadSpeed || 0,
         uploadSpeed: this._dlclient.uploadSpeed || 0,
-        ratio: this._dlclient.ratio || 0,
         pending: this._pending,
         torrents: this._dlclient.torrents
           .map((torrent: WebTorrent.Torrent) => ({
@@ -466,7 +465,7 @@ class TorrentWorker {
               .filter((file) => file.managed)
               .map((file: WebTorrent.TorrentFile) => ({
                 name: file.name,
-                path: file.path,
+                path: file.path.substr(0, file.path.length - file.name.length),
                 length: file.length,
                 progress: file.progress,
                 uploaded: file.uploaded,
