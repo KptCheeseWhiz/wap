@@ -30,6 +30,7 @@ export default async (host: string, port: number) => {
             `'self'`,
             "https://cdn.plyr.io",
             "https://api.jikan.moe",
+            "https://cdn.myanimelist.net"
           ],
           mediaSrc: [`'self'`, "https://cdn.plyr.io"],
           frameSrc: [`'self'`, "vlc:"],
