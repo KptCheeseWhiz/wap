@@ -24,7 +24,7 @@ export class ServiceWorkerService {
   async generate(): Promise<string> {
     if (this._cache) return this._cache;
     return (this._cache = `// This file is generated dynamically
-const cacheName = "wap-pwa"
+const cacheName = "wap-pwa";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
