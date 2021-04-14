@@ -9,5 +9,6 @@ import { CryptoModule } from "@/crypto/crypto.module";
   imports: [CryptoModule],
   providers: [TorrentService],
   controllers: [TorrentController],
+  exports: [TorrentService],
 })
 export class TorrentModule {}

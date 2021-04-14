@@ -39,32 +39,6 @@ function Home() {
         <Typography variant="h5" style={{ marginTop: 10 }}>
           The stream links only work if you follow the instructions...
           <li>
-            For Windows users: run{" "}
-            <Link download href="/wap.reg">
-              this
-            </Link>{" "}
-            and install{" "}
-            <Link
-              href="https://get.videolan.org/vlc/last/win64/"
-              target="_blank"
-            >
-              VLC
-            </Link>
-          </li>
-          <li>
-            For Linux users: run{" "}
-            <Link download href="/wap.sh">
-              this
-            </Link>{" "}
-            and install{" "}
-            <Link
-              href="https://www.videolan.org/vlc/index.html"
-              target="_blank"
-            >
-              VLC
-            </Link>
-          </li>
-          <li>
             For Android users: install{" "}
             <Link
               target="_blank"
@@ -74,7 +48,7 @@ function Home() {
               VLC
             </Link>
           </li>
-          <li>For other users: 🤷</li>
+          <li>For other users: use the embedded player</li>
         </Typography>
         <Button
           aria-label="Got it"

@@ -53,7 +53,7 @@ if (!fs_exists(HOME)) fs_mkdir(HOME);
       icon: path_join(__dirname, "app/public/icons/256.png"),
       show: false,
       webPreferences: {
-        devTools: false,
+        devTools: process.env.NODE_ENV === "development",
         preload: path_join(__dirname, "renderer.js"),
         enableRemoteModule: false,
       },
@@ -104,26 +104,6 @@ if (!fs_exists(HOME)) fs_mkdir(HOME);
     }
     callback(null);
   });
-
-  const CSP = [
-    `default-src 'self' https://api.jikan.moe`,
-    `script-src 'self'`,
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-    `font-src 'self' https://fonts.gstatic.com`,
-    `img-src 'self' data: https://cdn.myanimelist.net`,
-    `frame-src 'self' vlc:`,
-    `object-src 'none'`,
-  ].join("; ");
-
-  electron.session.defaultSession.webRequest.onHeadersReceived(
-    (details, callback) =>
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          "Content-Security-Policy": CSP,
-        },
-      })
-  );
 
   createWindow();
 })();

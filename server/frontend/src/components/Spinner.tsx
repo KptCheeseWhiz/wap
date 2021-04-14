@@ -23,7 +23,9 @@ function Spinner({ size, progress }: { size: number; progress?: number }) {
       >
         <Pad />
         <CircularProgress
-          variant={progress ? "determinate" : "indeterminate"}
+          variant={
+            progress && progress !== -1 ? "determinate" : "indeterminate"
+          }
           value={progress}
           size={size}
           color="secondary"

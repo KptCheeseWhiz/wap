@@ -15,8 +15,4 @@ export class DownloadFileDto {
   @IsOptional()
   @IsString()
   readonly disposition?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  readonly sig: string;
 }

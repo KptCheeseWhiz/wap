@@ -19,72 +19,64 @@ import { TorrentService } from "./torrent.service";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
 
 import { MagnetSignGuard } from "@/guards/magnetSign.guard";
-import { CacheTorrentGuard } from "@/guards/cacheTorrent.guard";
+import { CacheGuard } from "@/guards/cache.guard";
+import { parseRange } from "@/common/utils.helper";
 
 @Controller("/api/torrent")
 export class TorrentController {
   constructor(private torrentService: TorrentService) {}
 
   @Get("download/:name")
-  @Header("connection", "keep-alive")
+  @Header("connection", "close")
   @Header("accept-ranges", "bytes")
+  @Header("content-type", "application/octet-stream")
   @UseGuards(MagnetSignGuard)
   async downloadFile(
     @Headers("range") range: string,
-    @Query() downloadFileDto: Omit<DownloadFileDto, "name">,
+    @Query() downloadFileDto: Omit<DownloadFileDto, "name"> & { sig: string },
     @Param("name") name: string,
     @Res() res: Response,
   ) {
-    let start = 0,
-      end = 0;
+    const length = await this.torrentService.fileLength({
+      ...downloadFileDto,
+      name,
+    });
+    const { start, end } = parseRange(range, length);
 
-    if (range) {
-      if (/^bytes[= ][0-9]+?-([0-9]+?)?$/.test(range)) {
-        const regex = /^bytes[= ]([0-9]+?)-([0-9]+?)?$/.exec(range);
-        if (regex) {
-          if (regex[1]) start = Number(regex[1]);
-          if (regex[2]) end = Number(regex[2]);
-        }
+    if (start >= length || end >= length)
+      throw new HttpException(
+        "Invalid content range",
+        HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
+      );
 
-        if (end && end < start)
-          throw new HttpException(
-            "Invalid byte range",
-            HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
-          );
-      }
-    }
-
-    const {
-      length,
-      mime,
-      stream,
-    } = await this.torrentService.downloadFile({
+    const stream = await this.torrentService.downloadFile({
       ...downloadFileDto,
       name,
       start,
       end,
     });
 
-    if (!end) end = length;
-
+    res.setHeader("content-length", end - start + 1);
+    if (end - start !== length) {
+      res.setHeader(
+        "content-range",
+        "bytes " + start + "-" + end + "/" + length,
+      );
+      res.status(206);
+    }
     res.setHeader(
       "content-disposition",
       (downloadFileDto.disposition === "attachment" ? "attachment" : "inline") +
         `; filename="${name}"`,
     );
-    res.setHeader("content-type", mime);
-    res.setHeader("content-length", end - start);
-    res.setHeader("content-range", "bytes " + start + "-" + end + "/" + length);
 
-    res.status(end - start === length ? 200 : 206);
-
-    stream.pipe(res.on("close", () => stream.destroy()));
+    stream.pipe(res.once("close", () => stream.destroy()));
   }
 
   @Get("files")
   @Header("content-type", "application/json")
-  @UseGuards(CacheTorrentGuard, MagnetSignGuard)
-  async listFiles(@Query() listFilesDto: ListFilesDto) {
+  @UseGuards(CacheGuard, MagnetSignGuard)
+  async listFiles(@Query() listFilesDto: ListFilesDto & { sig: string }) {
     return await this.torrentService.listFiles(listFilesDto);
   }
 
@@ -92,7 +84,7 @@ export class TorrentController {
   @Header("content-type", "audio/x-mpegurl")
   @UseGuards(MagnetSignGuard)
   async downloadPlaylist(
-    @Query() downloadPlayListDto: DownloadPlaylistDto,
+    @Query() downloadPlayListDto: DownloadPlaylistDto & { sig: string },
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -111,6 +103,6 @@ export class TorrentController {
   @Get("status")
   @Header("content-type", "application/json")
   async status() {
-    return this.torrentService.status();
+    return await this.torrentService.status();
   }
 }

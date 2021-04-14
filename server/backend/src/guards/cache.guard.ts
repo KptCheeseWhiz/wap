@@ -8,7 +8,7 @@ import {
 import { Request } from "express";
 
 @Injectable()
-export class CacheTorrentGuard implements CanActivate {
+export class CacheGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request: Request = context.switchToHttp().getRequest();
     if (
@@ -17,7 +17,7 @@ export class CacheTorrentGuard implements CanActivate {
       request.headers["if-modified-since"] ||
       request.headers["if-unmodified-since"]
     )
-      throw new HttpException("Torrents don't change", HttpStatus.NOT_MODIFIED);
+      throw new HttpException("Not modified", HttpStatus.NOT_MODIFIED);
     return true;
   }
 }

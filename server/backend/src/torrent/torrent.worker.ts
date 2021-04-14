@@ -11,7 +11,6 @@ import * as fs from "fs";
 
 import * as parseTorrent from "parse-torrent";
 import * as WebTorrent from "webtorrent";
-import { lookup as mime_lookup } from "mime-types";
 
 import PortHelper from "@/common/port.helper";
 import Logger from "@/common/logger.helper";
@@ -44,6 +43,7 @@ class TorrentWorker {
     this._mainPort.passthru<TorrentWorker>(this, [
       "download",
       "drop",
+      "length",
       "files",
       "load",
       "prune",
@@ -92,161 +92,6 @@ class TorrentWorker {
     this._mainPort.emit("ready");
   }
 
-  async load() {
-    return (
-      this._dlclient.torrents.reduce(
-        (acc, torrent) =>
-          acc +
-          torrent.files
-            .filter((file) => file.managed)
-            .reduce((acc, file) => acc + file.length, 0),
-        0,
-      ) +
-      this._pending * 1000000000
-    );
-  }
-
-  async prune() {
-    try {
-      for (const torrent of this._dlclient.torrents) {
-        if (
-          torrent.files.every(
-            (file) =>
-              ((TORRENT_MAX_RATIO !== 0 &&
-                torrent.uploaded * TORRENT_MAX_RATIO > torrent.downloaded) ||
-                file.createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) &&
-              file.handles === 0,
-          )
-        ) {
-          Logger(this._id).log(`${torrent.infoHash} is expired`);
-          await this.remove({ infoHash: torrent.infoHash, force: true });
-        }
-      }
-    } catch (e) {
-      Logger(this._id).error(e.message, e.stack);
-      throw e;
-    }
-  }
-
-  async remove({ infoHash, force }: { infoHash: string; force: boolean }) {
-    return new Promise<void>(async (resolve, reject) => {
-      try {
-        const path = path_join(TORRENT_PATH, infoHash);
-
-        const torrent = this._dlclient.get(infoHash);
-        if (!torrent) return resolve();
-
-        if (!force)
-          while (
-            !torrent.files
-              .filter((f) => f.managed)
-              .every((f) => f.handles === 0)
-          )
-            await sleep(1000);
-
-        torrent.destroy(
-          {
-            destroyStore: true,
-          },
-          async () => {
-            Logger(this._id).log(`${infoHash} removed`);
-            await Promise.all([
-              fs.promises.rm(path, { recursive: true, force: true }),
-              fs.promises.rm(path + ".magnet", { force: true }),
-            ]);
-            resolve();
-          },
-        );
-      } catch (e) {
-        Logger(this._id).error(e.message, e.stack);
-        reject(e);
-      }
-    });
-  }
-
-  async drop({ infoHash }: { infoHash: string }) {
-    return new Promise<void>(async (resolve, reject) => {
-      try {
-        Logger(this._id).log(`${infoHash} dropped`);
-        if (this._dlclient.get(infoHash))
-          return this._dlclient.remove(
-            infoHash,
-            { destroyStore: false },
-            (err) => (err ? reject(err) : resolve()),
-          );
-        return resolve();
-      } catch (e) {
-        Logger(this._id).error(e.message, e.stack);
-        reject(e);
-      }
-    });
-  }
-
-  async resume({ infoHash }: { infoHash: string }) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        Logger(this._id).log(`${infoHash} resuming`);
-
-        const path = path_join(TORRENT_PATH, infoHash);
-
-        const createdAt = (
-          await fs.promises.stat(path_join(TORRENT_PATH, infoHash + ".magnet"))
-        ).birthtime;
-
-        if (createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) {
-          Logger(this._id).log(`${infoHash} expired`);
-          await Promise.all([
-            fs.promises.rm(path_join(TORRENT_PATH, infoHash + ".magnet")),
-            fs.promises.rm(path_join(TORRENT_PATH, infoHash), {
-              recursive: true,
-              force: true,
-            }),
-          ]);
-          return resolve(false);
-        } else resolve(true);
-
-        const magnet = (
-          await fs.promises.readFile(
-            path_join(TORRENT_PATH, infoHash + ".magnet"),
-          )
-        ).toString();
-
-        const magnetUri = parseTorrent(magnet);
-        if (!magnetUri.infoHash) return;
-        (magnetUri as any).so = "-1";
-
-        const torrent = await new Promise<WebTorrent.Torrent>((resolve) =>
-          this._dlclient.add(
-            parseTorrent.toMagnetURI(magnetUri),
-            {
-              path,
-            },
-            (torrent: WebTorrent.Torrent) => {
-              torrent.files.forEach((file) => file.deselect());
-              torrent.deselect(0, torrent.pieces.length - 1, 0);
-              resolve(torrent);
-            },
-          ),
-        );
-
-        for (const file of torrent.files)
-          if (await fileExists(path_join(TORRENT_PATH, infoHash, file.path))) {
-            file.managed = true;
-            file.createdAt = createdAt;
-            file.expiresAt = new Date(createdAt.getTime() + TORRENT_EXPIRATION);
-            file.handles = 0;
-            file.uploaded = 0;
-
-            Logger(this._id).log(`${infoHash} ${file.name} resumed`);
-            file.select();
-          }
-      } catch (e) {
-        Logger(this._id).error(e.message, e.stack);
-        reject(e);
-      }
-    });
-  }
-
   async download({
     magnet,
     name,
@@ -257,9 +102,14 @@ class TorrentWorker {
     magnet: string;
     name: string;
     path: string;
-    start: number;
-    end: number;
-  }) {
+    start?: number;
+    end?: number;
+  }): Promise<{
+    infoHash: string;
+    length: number;
+    port: MessagePort;
+    _transferList: TransferListItem[];
+  }> {
     try {
       this._pending++;
 
@@ -268,9 +118,8 @@ class TorrentWorker {
       (magnetUri as any).so = "-1";
 
       return await new Promise<{
-        mime: string;
-        length: number;
         infoHash: string;
+        length: number;
         port: MessagePort;
         _transferList: TransferListItem[];
       }>(async (resolve, reject) => {
@@ -351,9 +200,8 @@ class TorrentWorker {
         });
 
         resolve({
-          mime: mime_lookup(file.path) || "application/octet-stream",
+          infoHash: magnetUri.infoHash,
           length: file.length,
-          infoHash: torrent.infoHash,
           port: port1,
           _transferList: [port1],
         });
@@ -364,6 +212,63 @@ class TorrentWorker {
     } finally {
       this._pending--;
     }
+  }
+
+  async drop({ infoHash }: { infoHash: string }): Promise<void> {
+    return new Promise<void>(async (resolve, reject) => {
+      try {
+        Logger(this._id).log(`${infoHash} dropped`);
+        if (this._dlclient.get(infoHash))
+          return this._dlclient.remove(
+            infoHash,
+            { destroyStore: false },
+            (err) => (err ? reject(err) : resolve()),
+          );
+        return resolve();
+      } catch (e) {
+        Logger(this._id).error(e.message, e.stack);
+        reject(e);
+      }
+    });
+  }
+
+  async length({
+    magnet,
+    name,
+    path,
+  }: {
+    magnet: string;
+    name?: string;
+    path?: string;
+  }): Promise<number> {
+    const magnetUri = parseTorrent(magnet);
+    if (!magnetUri.infoHash) throw new Error("Invalid magnet");
+    (magnetUri as any).so = "-1";
+
+    // Asking for length means you want to download it
+    const torrent =
+      this._dlclient.get(magnet) ||
+      (await new Promise<WebTorrent.Torrent>((resolve) =>
+        this._dlclient.add(
+          parseTorrent.toMagnetURI(magnetUri),
+          {
+            path: path_join(TORRENT_PATH, magnetUri.infoHash),
+          },
+          async (torrent) => {
+            torrent.files.forEach((file) => file.deselect());
+            torrent.deselect(0, torrent.pieces.length - 1, 0);
+            resolve(torrent);
+          },
+        ),
+      ));
+
+    if (!name) return torrent.length;
+
+    const fullpath = path_join(path, name);
+    const file = torrent.files.find((file) => file.path === fullpath);
+    if (!file)
+      throw new Error(`File ${fullpath} not found in ${magnetUri.infoHash}`);
+    return file.length;
   }
 
   async files({
@@ -441,6 +346,149 @@ class TorrentWorker {
     } finally {
       this._pending--;
     }
+  }
+
+  async load(): Promise<number> {
+    return (
+      this._dlclient.torrents.reduce(
+        (acc, torrent) =>
+          acc +
+          torrent.files
+            .filter((file) => file.managed)
+            .reduce((acc, file) => acc + file.length, 0),
+        0,
+      ) +
+      this._pending * 1000000000
+    );
+  }
+
+  async prune(): Promise<void> {
+    try {
+      for (const torrent of this._dlclient.torrents) {
+        if (
+          torrent.files.every(
+            (file) =>
+              ((TORRENT_MAX_RATIO !== 0 &&
+                torrent.uploaded * TORRENT_MAX_RATIO > torrent.downloaded) ||
+                file.createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) &&
+              file.handles === 0,
+          )
+        ) {
+          Logger(this._id).log(`${torrent.infoHash} is expired`);
+          await this.remove({ infoHash: torrent.infoHash, force: true });
+        }
+      }
+    } catch (e) {
+      Logger(this._id).error(e.message, e.stack);
+      throw e;
+    }
+  }
+
+  async remove({
+    infoHash,
+    force,
+  }: {
+    infoHash: string;
+    force: boolean;
+  }): Promise<void> {
+    return new Promise<void>(async (resolve, reject) => {
+      try {
+        const path = path_join(TORRENT_PATH, infoHash);
+
+        const torrent = this._dlclient.get(infoHash);
+        if (!torrent) return resolve();
+
+        if (!force)
+          while (
+            !torrent.files
+              .filter((f) => f.managed)
+              .every((f) => f.handles === 0)
+          )
+            await sleep(1000);
+
+        torrent.destroy(
+          {
+            destroyStore: true,
+          },
+          async () => {
+            Logger(this._id).log(`${infoHash} removed`);
+            await Promise.all([
+              fs.promises.rm(path, { recursive: true, force: true }),
+              fs.promises.rm(path + ".magnet", { force: true }),
+            ]);
+            resolve();
+          },
+        );
+      } catch (e) {
+        Logger(this._id).error(e.message, e.stack);
+        reject(e);
+      }
+    });
+  }
+
+  async resume({ infoHash }: { infoHash: string }): Promise<boolean> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        Logger(this._id).log(`${infoHash} resuming`);
+
+        const path = path_join(TORRENT_PATH, infoHash);
+
+        const createdAt = (
+          await fs.promises.stat(path_join(TORRENT_PATH, infoHash + ".magnet"))
+        ).birthtime;
+
+        if (createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) {
+          Logger(this._id).log(`${infoHash} expired`);
+          await Promise.all([
+            fs.promises.rm(path_join(TORRENT_PATH, infoHash + ".magnet")),
+            fs.promises.rm(path_join(TORRENT_PATH, infoHash), {
+              recursive: true,
+              force: true,
+            }),
+          ]);
+          return resolve(false);
+        } else resolve(true);
+
+        const magnet = (
+          await fs.promises.readFile(
+            path_join(TORRENT_PATH, infoHash + ".magnet"),
+          )
+        ).toString();
+
+        const magnetUri = parseTorrent(magnet);
+        if (!magnetUri.infoHash) return;
+        (magnetUri as any).so = "-1";
+
+        const torrent = await new Promise<WebTorrent.Torrent>((resolve) =>
+          this._dlclient.add(
+            parseTorrent.toMagnetURI(magnetUri),
+            {
+              path,
+            },
+            (torrent: WebTorrent.Torrent) => {
+              torrent.files.forEach((file) => file.deselect());
+              torrent.deselect(0, torrent.pieces.length - 1, 0);
+              resolve(torrent);
+            },
+          ),
+        );
+
+        for (const file of torrent.files)
+          if (await fileExists(path_join(TORRENT_PATH, infoHash, file.path))) {
+            file.managed = true;
+            file.createdAt = createdAt;
+            file.expiresAt = new Date(createdAt.getTime() + TORRENT_EXPIRATION);
+            file.handles = 0;
+            file.uploaded = 0;
+
+            Logger(this._id).log(`${infoHash} ${file.name} resumed`);
+            file.select();
+          }
+      } catch (e) {
+        Logger(this._id).error(e.message, e.stack);
+        reject(e);
+      }
+    });
   }
 
   async status() {

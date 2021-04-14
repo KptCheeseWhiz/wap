@@ -39,7 +39,6 @@ export const search_columns = async (params: {
 }): Promise<{ name: string; value: string; sortable: boolean }[]> =>
   await fetch(toURL(window.location.origin + "/api/search/columns", params));
 
-// since torrent files cannot change, we can just cache them
 export const torrent_files = async (params: {
   magnet: string;
   sig: string;
@@ -48,3 +47,21 @@ export const torrent_files = async (params: {
 
 export const torrent_status = async (): Promise<any> =>
   await fetch("/api/torrent/status");
+
+export const player_head = async (params: {
+  magnet: string;
+  name: string;
+  path: string;
+  sig: string;
+}): Promise<void> =>
+  await fetch(toURL(window.location.origin + "/api/player/play", params), {
+    method: "HEAD",
+  });
+
+export const player_subtitles = async (params: {
+  magnet: string;
+  name: string;
+  path: string;
+  sig: string;
+}): Promise<{ language: string; title: string }[]> =>
+  await fetch(toURL(window.location.origin + "/api/player/subtitles", params));

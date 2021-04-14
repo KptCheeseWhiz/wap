@@ -1,5 +1,6 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import * as helmet from "helmet";
 
 import { AppModule } from "@/app/app.module";
 import { HttpExceptionFilter } from "@/filters/http-exception.filter";
@@ -7,6 +8,38 @@ import { HttpExceptionFilter } from "@/filters/http-exception.filter";
 export default async (host: string, port: number) => {
   const app = await NestFactory.create(AppModule);
 
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: [`'self'`],
+          scriptSrc: [
+            `'self'`,
+            process.env.NODE_ENV === "development"
+              ? `'unsafe-inline'`
+              : `'sha256-YF2l82GO3HhwICRG1sbwEwrGFP6wtVup77eNGHGSycE='`,
+          ],
+          styleSrc: [
+            `'self'`,
+            `'unsafe-inline'`,
+            "https://fonts.googleapis.com",
+          ],
+          fontSrc: [`'self'`, "https://fonts.gstatic.com"],
+          imgSrc: [`'self'`, "data:", "https://cdn.myanimelist.net"],
+          connectSrc: [
+            `'self'`,
+            "https://cdn.plyr.io",
+            "https://api.jikan.moe",
+          ],
+          mediaSrc: [`'self'`, "https://cdn.plyr.io"],
+          frameSrc: [`'self'`, "vlc:"],
+          objectSrc: [`'none'`],
+        },
+      },
+      frameguard: { action: "DENY" },
+      referrerPolicy: { policy: "no-referrer" },
+    }),
+  );
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({

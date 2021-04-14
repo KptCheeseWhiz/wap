@@ -22,6 +22,9 @@ import LoadingButton from "components/DownloadingButton";
 import { torrent_files } from "helpers/api";
 import { toURL } from "helpers/fetch";
 
+const HAS_VLC =
+  (window as any).IS_ELECTRON || /(android)/i.test(navigator.userAgent);
+
 function TorrentRow({
   torrent,
   columns,
@@ -128,7 +131,14 @@ function TorrentRow({
                           sig: torrent.sig,
                         },
                       );
-                      const filestream = "vlc://" + filedl;
+                      const filestream = HAS_VLC
+                        ? "vlc://" + filedl
+                        : toURL(window.location.origin + "/player", {
+                            magnet: torrent.magnet,
+                            name: file.name,
+                            path: file.path,
+                            sig: torrent.sig,
+                          });
 
                       return (
                         <TableRow key={"file" + i}>
@@ -178,14 +188,16 @@ function TorrentRow({
                         >
                           Download playlist
                         </Button>
-                        <Button
-                          aria-label="Stream playlist"
-                          color="secondary"
-                          href={plstream}
-                          onClick={onClick(plstream)}
-                        >
-                          Stream playlist
-                        </Button>
+                        {HAS_VLC && (
+                          <Button
+                            aria-label="Stream playlist"
+                            color="secondary"
+                            href={plstream}
+                            onClick={onClick(plstream)}
+                          >
+                            Stream playlist
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   </>

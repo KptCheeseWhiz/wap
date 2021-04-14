@@ -15,7 +15,7 @@ import {
 
 import SearchBar from "views/Search/SearchBar";
 import Pagination from "views/Search/Pagination";
-import LoadingBar from "views/Search/LoadingBar";
+import TorrentRow from "views/Search/TorrentRow";
 import Favorites from "views/Search/Favorites";
 import Seasonal from "views/Search/Seasonal";
 
@@ -23,7 +23,7 @@ import { context } from "helpers/reducer";
 import * as api from "helpers/api";
 import { toQuery } from "helpers/fetch";
 
-import TorrentRow from "views/Search/TorrentRow";
+import LoadingBar from "components/LoadingBar";
 
 function Search() {
   const { state, dispatch } = useContext(context);

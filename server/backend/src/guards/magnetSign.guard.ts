@@ -23,7 +23,7 @@ export class MagnetSignGuard implements CanActivate {
       typeof hmac !== "string" ||
       !this.cryptoService.verify(data, hmac)
     )
-      throw new HttpException("Invalid signature", HttpStatus.FORBIDDEN);
+      throw new HttpException("Invalid URL", HttpStatus.BAD_REQUEST);
 
     return true;
   }

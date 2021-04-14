@@ -12,8 +12,4 @@ export class DownloadPlaylistDto {
   @IsString()
   @IsOptional()
   readonly path?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  readonly sig: string;
 }

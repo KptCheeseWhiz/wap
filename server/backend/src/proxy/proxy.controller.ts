@@ -8,11 +8,13 @@ export class ProxyController {
 
   constructor() {
     if (process.env.NODE_ENV !== "development")
-      throw new Error("please don't include me if not in development");
+      throw new Error("Only include me when in development mode");
     this._proxy = createProxyMiddleware({
       // The development frontend server should be running at this address
       target: "http://localhost:4999",
       ws: true,
+      changeOrigin: true,
+      logLevel: "silent",
     });
   }
 

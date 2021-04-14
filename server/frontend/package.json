@@ -25,6 +25,8 @@
     "file-saver": "^2.0.5",
     "lodash": "^4.17.21",
     "notistack": "^1.0.0",
+    "plyr": "^3.6.4",
+    "plyr-react": "^3.0.8",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-material-ui-carousel": "^2.1.1",

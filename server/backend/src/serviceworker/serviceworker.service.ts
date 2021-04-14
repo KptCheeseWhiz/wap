@@ -52,7 +52,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("fetch", (event) =>
   event.respondWith(
     caches.open(cacheName).then((cache) =>
-      /^\\/(search)?(\\?.+)$/.test(
+      /^\\/(search|player)?(\\?.+)$/.test(
         event.request.url.slice(self.location.origin.length),
       )
         ? cache.match("/index.html")
