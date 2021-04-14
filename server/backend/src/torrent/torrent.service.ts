@@ -254,22 +254,20 @@ export class TorrentService {
           })
         ).filter((file) => file.isDirectory()),
         this._workers.length,
-      ).map((dirs: fs.Dirent[], worker_index: number) =>
-        Promise.all(
-          dirs.map(async (directory: fs.Dirent) => {
-            const fmagnet = path_join(TORRENT_PATH, directory.name + ".magnet");
-            if (!(await fileExists(fmagnet))) return;
+      ).map(async (dirs: fs.Dirent[], worker_index: number) => {
+        for (let directory of dirs) {
+          const fmagnet = path_join(TORRENT_PATH, directory.name + ".magnet");
+          if (!(await fileExists(fmagnet))) return;
 
-            const magnet = (await fs.promises.readFile(fmagnet)).toString();
-            const magnetUri = parseTorrent(magnet);
-            if (!magnetUri.infoHash) return;
+          const magnet = (await fs.promises.readFile(fmagnet)).toString();
+          const magnetUri = parseTorrent(magnet);
+          if (!magnetUri.infoHash) return;
 
-            await this._workers[worker_index].resume({
-              infoHash: magnetUri.infoHash,
-            });
-          }),
-        ),
-      ),
+          await this._workers[worker_index].resume({
+            infoHash: magnetUri.infoHash,
+          });
+        }
+      }),
     );
   }
 
