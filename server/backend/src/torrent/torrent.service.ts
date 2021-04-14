@@ -204,7 +204,6 @@ class TorrentWorkerBridge {
 @Injectable()
 export class TorrentService {
   private _workers: TorrentWorkerBridge[] = [];
-  private _ready = false;
 
   constructor(private cryptoService: CryptoService) {
     testFolder(TORRENT_PATH).then((ok) => {
@@ -217,8 +216,7 @@ export class TorrentService {
       for (let i = 0; i < TORRENT_MAX_WORKERS; ++i)
         this._workers.push(
           new TorrentWorkerBridge(() => {
-            if (++onlineWorker === TORRENT_MAX_WORKERS)
-              this.rescan().then(() => (this._ready = true));
+            if (++onlineWorker === TORRENT_MAX_WORKERS) this.rescan();
           }),
         );
     });
@@ -278,12 +276,6 @@ export class TorrentService {
     start = 0,
     end = 0,
   }: DownloadFileDto & { start?: number; end?: number }): Promise<Readable> {
-    if (!this._ready)
-      throw new HttpException(
-        "Please wait while workers are launching",
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-
     const magnetUri = parseTorrent(magnet);
     if (!magnetUri)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
