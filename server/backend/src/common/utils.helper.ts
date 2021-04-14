@@ -86,3 +86,13 @@ export const parseRange = (
 
   return { start, end };
 };
+
+export const chopArray = <T>(array: T[], blocks: number): T[][] => {
+  return array.reduce(
+    (acc, e, i) => {
+      acc[i % acc.length].push(e);
+      return acc;
+    },
+    Array.apply(null, Array(blocks)).map(() => []),
+  );
+};

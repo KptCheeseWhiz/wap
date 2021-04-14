@@ -257,6 +257,12 @@ class TorrentWorker {
           async (torrent) => {
             torrent.files.forEach((file) => file.deselect());
             torrent.deselect(0, torrent.pieces.length - 1, 0);
+
+            await fs.promises.writeFile(
+              path_join(TORRENT_PATH, magnetUri.infoHash + ".magnet"),
+              magnet,
+            );
+
             resolve(torrent);
           },
         ),
@@ -447,7 +453,7 @@ class TorrentWorker {
             }),
           ]);
           return resolve(false);
-        } else resolve(true);
+        }
 
         const magnet = (
           await fs.promises.readFile(
@@ -484,6 +490,7 @@ class TorrentWorker {
             Logger(this._id).log(`${infoHash} ${file.name} resumed`);
             file.select();
           }
+        resolve(true);
       } catch (e) {
         Logger(this._id).error(e.message, e.stack);
         reject(e);

@@ -15,7 +15,12 @@ import { ListFilesDto } from "./dto/listFiles.dto";
 import PortHelper from "@/common/port.helper";
 import { LockingReadable } from "@/common/chunked.helper";
 import Logger, { Context } from "@/common/logger.helper";
-import { fileExists, testFolder, toURL } from "@/common/utils.helper";
+import {
+  chopArray,
+  fileExists,
+  testFolder,
+  toURL,
+} from "@/common/utils.helper";
 import { CryptoService } from "@/crypto/crypto.service";
 
 const TORRENT_MAX_WORKERS = Math.max(
@@ -242,24 +247,29 @@ export class TorrentService {
   private async rescan() {
     if (!(await fileExists(TORRENT_PATH))) return;
     return Promise.all(
-      (
-        await fs.promises.readdir(TORRENT_PATH, {
-          withFileTypes: true,
-        })
-      )
-        .filter((file) => file.isDirectory())
-        .map(async (directory, i) => {
-          const fmagnet = path_join(TORRENT_PATH, directory.name + ".magnet");
-          if (!(await fileExists(fmagnet))) return;
+      chopArray<fs.Dirent>(
+        (
+          await fs.promises.readdir(TORRENT_PATH, {
+            withFileTypes: true,
+          })
+        ).filter((file) => file.isDirectory()),
+        this._workers.length,
+      ).map((dirs: fs.Dirent[], worker_index: number) =>
+        Promise.all(
+          dirs.map(async (directory: fs.Dirent) => {
+            const fmagnet = path_join(TORRENT_PATH, directory.name + ".magnet");
+            if (!(await fileExists(fmagnet))) return;
 
-          const magnet = (await fs.promises.readFile(fmagnet)).toString();
-          const magnetUri = parseTorrent(magnet);
-          if (!magnetUri.infoHash) return;
+            const magnet = (await fs.promises.readFile(fmagnet)).toString();
+            const magnetUri = parseTorrent(magnet);
+            if (!magnetUri.infoHash) return;
 
-          await this._workers[i % this._workers.length].resume({
-            infoHash: magnetUri.infoHash,
-          });
-        }),
+            await this._workers[worker_index].resume({
+              infoHash: magnetUri.infoHash,
+            });
+          }),
+        ),
+      ),
     );
   }
 
@@ -331,11 +341,7 @@ export class TorrentService {
     };
   }
 
-  async fileLength({
-    magnet,
-    name,
-    path,
-  }: DownloadFileDto): Promise<number> {
+  async fileLength({ magnet, name, path }: DownloadFileDto): Promise<number> {
     const magnetUri = parseTorrent(magnet);
     if (!magnetUri)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
