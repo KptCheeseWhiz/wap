@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 
-import { Card, CardMedia, Typography } from "@material-ui/core";
 import { useHistory } from "react-router";
 import { useSnackbar } from "notistack";
 import Plyr from "plyr-react";
 import "plyr-react/dist/plyr.css";
+import "./index.css";
 
 import * as api from "helpers/api";
 import { toURL } from "helpers/fetch";
@@ -50,10 +50,10 @@ function Player() {
             1000,
           );
 
-          api
+          return api
             .player_subtitles(video)
             .then(setSubtitles)
-            .then(() => clearTimeout(timeout));
+            .finally(() => clearTimeout(timeout));
         })
         .catch((e: Error) => {
           enqueueSnackbar(e.message, { variant: "error" });
@@ -92,7 +92,7 @@ function Player() {
           source={{
             type: "video",
             // Try them all, maybe it will be in the right format
-            sources: ["video/mp4", "video/webm", "video/ogg", "video/3gp"].map(
+            sources: ["video/mp4", "video/webm"/*, "video/ogg", "video/3gp"*/].map(
               (type) => ({
                 src: toURL(window.location.origin + "/api/player/play", video),
                 type,
