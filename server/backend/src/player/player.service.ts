@@ -122,8 +122,6 @@ export class PlayerService {
       throw new HttpException("Subtitle not found", HttpStatus.NOT_FOUND);
 
     return new Promise<Readable>((resolve) => {
-      const tmpfile = fullpath + "__subtitle_" + +index + ".vtt_" + Date.now();
-
       const spawn = cp_spawn(
         ffmpeg_static,
         [
@@ -136,10 +134,10 @@ export class PlayerService {
           `webvtt`,
           `-f`,
           `webvtt`,
-          tmpfile,
+          `pipe:1`,
         ],
         {
-          stdio: ["pipe", "ignore", "ignore"],
+          stdio: ["pipe", "pipe", "ignore"],
         },
       );
 
@@ -147,8 +145,13 @@ export class PlayerService {
         .downloadFile({ magnet, name, path })
         .then((stream) => stream.pipe(spawn.stdin));
 
+      const tmpfile = fullpath + "__subtitle_" + +index + ".vtt_" + Date.now();
+
+      const stream = fs.createWriteStream(tmpfile);
+      spawn.stdout.on("data", (buffer: Buffer) => stream.write(buffer));
       spawn.stdin.once("error", () => {});
       spawn.once("exit", async (code) => {
+        stream.close();
         if (code === 0)
           await fs.promises.copyFile(
             tmpfile,
