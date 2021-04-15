@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as unzipper from "unzipper";
+import unzipper from "unzipper";
 import { downloadArtifact } from "@electron/get";
-import * as yargs from "yargs-parser";
+import yargs from "yargs-parser";
 import * as npm from "../package.json";
 
 const args = yargs(process.argv.slice(2));

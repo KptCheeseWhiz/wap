@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 
 import { useSnackbar } from "notistack";
 import {
@@ -19,11 +19,9 @@ import {
 
 import LoadingButton from "components/DownloadingButton";
 
+import { context } from "helpers/reducer";
 import { torrent_files } from "helpers/api";
 import { toURL } from "helpers/fetch";
-
-const HAS_VLC =
-  (window as any).IS_ELECTRON || /(android)/i.test(navigator.userAgent);
 
 function TorrentRow({
   torrent,
@@ -44,6 +42,7 @@ function TorrentRow({
   };
   columns: { name: string; value: string; sortable: boolean }[];
 }) {
+  const { state, dispatch } = useContext(context);
   const { enqueueSnackbar } = useSnackbar();
 
   const [open, setOpen] = useState<boolean>(false);
@@ -62,27 +61,29 @@ function TorrentRow({
       torrent_files({ magnet: torrent.magnet, sig: torrent.sig })
         .then(setFiles)
         .catch((e) => {
-          enqueueSnackbar(e.message, { variant: "error" });
+          if (e.message) enqueueSnackbar(e.message, { variant: "error" });
           setOpen(false);
         });
     }
     event.stopPropagation();
   };
 
+  const onStreamClick = (video: {
+    magnet: string;
+    name: string;
+    path: string;
+    sig: string;
+  }) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    dispatch({ type: "SET_VIDEO", value: { ...video, open: true } });
+    event.preventDefault();
+  };
+
   const onClick = (url: string) => (
     event: React.MouseEvent<HTMLButtonElement>,
   ) => {
-    event.preventDefault();
     window.open(url, "_blank", "noopener noreferrer");
+    event.preventDefault();
   };
-
-  const pldl = toURL(window.location.origin + "/api/torrent/playlist", {
-    name: "",
-    path: "",
-    magnet: torrent.magnet,
-    sig: torrent.sig,
-  });
-  const plstream = "vlc://" + pldl;
 
   return (
     <>
@@ -131,14 +132,15 @@ function TorrentRow({
                           sig: torrent.sig,
                         },
                       );
-                      const filestream = HAS_VLC
-                        ? "vlc://" + filedl
-                        : toURL(window.location.origin + "/player", {
-                            magnet: torrent.magnet,
-                            name: file.name,
-                            path: file.path,
-                            sig: torrent.sig,
-                          });
+                      const filestream = toURL(
+                        window.location.origin + "/player",
+                        {
+                          magnet: torrent.magnet,
+                          name: file.name,
+                          path: file.path,
+                          sig: torrent.sig,
+                        },
+                      );
 
                       return (
                         <TableRow key={"file" + i}>
@@ -154,7 +156,12 @@ function TorrentRow({
                               aria-label="Stream"
                               color="secondary"
                               href={filestream}
-                              onClick={onClick(filestream)}
+                              onClick={onStreamClick({
+                                magnet: torrent.magnet,
+                                name: file.name,
+                                path: file.path,
+                                sig: torrent.sig,
+                              })}
                             >
                               {"Stream"}
                             </Button>
@@ -165,12 +172,12 @@ function TorrentRow({
                     <TableRow>
                       <TableCell colSpan={10}>
                         <Button
-                          aria-label="Download"
+                          aria-label="Torrent"
                           color="secondary"
                           href={torrent.download}
                           onClick={onClick(torrent.download)}
                         >
-                          Download
+                          Torrent
                         </Button>
                         <Button
                           aria-label="Magnet"
@@ -180,24 +187,6 @@ function TorrentRow({
                         >
                           Magnet
                         </Button>
-                        <Button
-                          aria-label="Download playlist"
-                          color="secondary"
-                          href={pldl}
-                          onClick={onClick(pldl)}
-                        >
-                          Download playlist
-                        </Button>
-                        {HAS_VLC && (
-                          <Button
-                            aria-label="Stream playlist"
-                            color="secondary"
-                            href={plstream}
-                            onClick={onClick(plstream)}
-                          >
-                            Stream playlist
-                          </Button>
-                        )}
                       </TableCell>
                     </TableRow>
                   </>

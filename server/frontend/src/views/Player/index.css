@@ -1,7 +1,7 @@
 .plyr__caption {
   background-color: transparent;
-  font-size: 3em;
+  font-size: 200%;
   line-height: 125%;
-  text-shadow: -4px 0 black, 0 4px black, 4px 0 black, 0 -4px black;
+  text-shadow: -2px 0 black, 0 2px black, 2px 0 black, 0 -2px black;
   -webkit-font-smoothing: antialiased;
 }

@@ -22,7 +22,7 @@ else
     write({});
   }
 
-electron.contextBridge.exposeInMainWorld("IS_ELECTRON", true);
+electron.contextBridge.exposeInMainWorld("ELECTRON", true);
 electron.contextBridge.exposeInMainWorld("storage", {
   clear: (): void => {
     return write({});

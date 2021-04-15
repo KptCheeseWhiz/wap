@@ -70,7 +70,7 @@ export class TorrentController {
         `; filename="${name}"`,
     );
 
-    stream.pipe(res.once("close", () => stream.destroy()));
+    stream.pipe(res).once("close", () => stream.destroy());
   }
 
   @Get("files")
@@ -104,5 +104,19 @@ export class TorrentController {
   @Header("content-type", "application/json")
   async status() {
     return await this.torrentService.status();
+  }
+
+  @Get("verify")
+  @UseGuards(MagnetSignGuard)
+  async verify(
+    @Query() downloadFileDto: DownloadFileDto & { sig: string },
+    @Res() res: Response,
+  ) {
+    const stream = await this.torrentService.downloadFile({
+      ...downloadFileDto,
+      start: 0,
+      end: 1,
+    });
+    stream.once("data", () => res.status(204).send(true));
   }
 }

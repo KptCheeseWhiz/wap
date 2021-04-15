@@ -2,11 +2,10 @@ import { Worker, MessageChannel, MessagePort } from "worker_threads";
 import { cpus as os_cpus } from "os";
 import { join as path_join } from "path";
 import { Readable } from "stream";
-import EventEmitter from "events";
 import * as fs from "fs";
 
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import * as parseTorrent from "parse-torrent";
+import parseTorrent, { Instance } from "parse-torrent";
 
 import { DownloadFileDto } from "./dto/downloadFile.dto";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
@@ -29,13 +28,17 @@ const TORRENT_MAX_WORKERS = Math.max(
 );
 const TORRENT_PATH = process.env.TORRENT_PATH || "./torrents";
 
+interface MagnetUri extends Instance {
+  infoHash: string;
+}
+
 let workerCount = 0;
 class TorrentWorkerBridge {
   private _id: string = `${Context.TORRENT} ${workerCount++}`;
 
   private _worker: Worker;
   private _mainPort: PortHelper;
-  private _hashes: { [key: string]: boolean } = {};
+  private _magnetUris: { [infoHash: string]: MagnetUri } = {};
 
   constructor(ready_callback?: () => void) {
     this.init().then(() => ready_callback());
@@ -59,8 +62,8 @@ class TorrentWorkerBridge {
         Logger(this._id).log(`exited with code ${code}`);
         if (code !== 0) {
           await this.init();
-          for (let infoHash of Object.keys(this._hashes))
-            await this.resume({ infoHash });
+          for (let magnetUri of Object.values(this._magnetUris))
+            await this.resume({ magnetUri });
         }
       });
 
@@ -69,39 +72,53 @@ class TorrentWorkerBridge {
   }
 
   get hashes(): string[] {
-    return Object.keys(this._hashes);
+    return Object.keys(this._magnetUris);
   }
 
   has(infoHash: string): boolean {
-    return !!this._hashes[infoHash];
+    return !!this._magnetUris[infoHash];
+  }
+
+  async done({
+    magnetUri,
+    name,
+    path,
+  }: {
+    magnetUri: MagnetUri;
+    name?: string;
+    path?: string;
+  }) {
+    return await this._mainPort.send<void>("done", { magnetUri, name, path });
   }
 
   async download({
-    magnet,
+    magnetUri,
     name,
     path,
     start,
     end,
   }: {
-    magnet: string;
+    magnetUri: MagnetUri;
     name: string;
     path: string;
     start: number;
     end: number;
   }): Promise<Readable> {
-    const { port, length, infoHash } = await this._mainPort.send<{
+    const { port, length } = await this._mainPort.send<{
       port: MessagePort;
       length: number;
-      infoHash: string;
     }>("download", {
-      magnet,
+      magnetUri,
       name,
       path,
       start,
       end,
     });
 
-    if (!this._hashes[infoHash]) this._hashes[infoHash] = true;
+    if (!this._magnetUris[magnetUri.infoHash])
+      this._magnetUris[magnetUri.infoHash] = {
+        ...magnetUri,
+      };
 
     const dlport = new PortHelper(port);
 
@@ -126,39 +143,39 @@ class TorrentWorkerBridge {
     return stream;
   }
 
-  async drop({ infoHash }: { infoHash: string }) {
+  async drop({ magnetUri }: { magnetUri: MagnetUri }) {
     return await this._mainPort
-      .send<void>("drop", { infoHash })
+      .send<void>("drop", { magnetUri })
       .then(() => {
-        delete this._hashes[infoHash];
+        delete this._magnetUris[magnetUri.infoHash];
       });
   }
 
   async length({
-    magnet,
+    magnetUri,
     name,
     path,
   }: {
-    magnet: string;
+    magnetUri: MagnetUri;
     name: string;
     path: string;
   }): Promise<number> {
     return await this._mainPort.send<number>("length", {
-      magnet,
+      magnetUri,
       name,
       path,
     });
   }
 
   async files({
-    magnet,
+    magnetUri,
   }: {
-    magnet: string;
+    magnetUri: MagnetUri;
   }): Promise<{ name: string; path: string; size: number }[]> {
     return await this._mainPort.send<
       { name: string; path: string; size: number }[]
     >("files", {
-      magnet,
+      magnetUri,
     });
   }
 
@@ -167,26 +184,47 @@ class TorrentWorkerBridge {
   }
 
   async remove({
-    infoHash,
+    magnetUri,
     force,
   }: {
-    infoHash: string;
+    magnetUri: MagnetUri;
     force: boolean;
   }): Promise<void> {
     return await this._mainPort
-      .send<void>("remove", { infoHash, force })
+      .send<void>("remove", { infoHash: magnetUri.infoHash, force })
       .then(() => {
-        delete this._hashes[infoHash];
+        delete this._magnetUris[magnetUri.infoHash];
       });
   }
 
-  async resume({ infoHash }: { infoHash: string }): Promise<boolean> {
+  async resume({ magnetUri }: { magnetUri: MagnetUri }): Promise<boolean> {
     return await this._mainPort
-      .send<boolean>("resume", { infoHash })
-      .then((ok) => {
-        if (ok) this._hashes[infoHash] = true;
-        return ok;
+      .send<{ name: string; path: string }[]>("resume", {
+        infoHash: magnetUri.infoHash,
+      })
+      .then((files) => {
+        if (files.length > 0)
+          this._magnetUris[magnetUri.infoHash] = {
+            ...magnetUri,
+          };
+        return files.length !== 0;
       });
+  }
+
+  async resumeMany({
+    magnetUris,
+  }: {
+    magnetUris: MagnetUri[];
+  }): Promise<boolean[]> {
+    for (let magnetUri of magnetUris)
+      this._magnetUris[magnetUri.infoHash] = {
+        ...magnetUri,
+      };
+
+    const resumes: boolean[] = [];
+    for (let magnetUri of magnetUris)
+      resumes.push(await this.resume({ magnetUri }));
+    return resumes;
   }
 
   async status() {
@@ -223,10 +261,10 @@ export class TorrentService {
   }
 
   private async findBest(
-    infoHash: string,
+    magnetUri: MagnetUri,
     nullIfNone?: boolean,
   ): Promise<TorrentWorkerBridge> {
-    const workers = this._workers.filter((w) => w.has(infoHash));
+    const workers = this._workers.filter((w) => w.has(magnetUri.infoHash));
     if (workers.length === 0) {
       if (nullIfNone) return null;
       return (
@@ -238,7 +276,7 @@ export class TorrentService {
         )
       ).sort((a, b) => a.load - b.load)[0].worker;
     }
-    while (workers.length !== 1) await workers.pop().drop({ infoHash });
+    while (workers.length !== 1) await workers.pop().drop({ magnetUri });
     return workers[0];
   }
 
@@ -253,18 +291,26 @@ export class TorrentService {
         ).filter((file) => file.isDirectory()),
         this._workers.length,
       ).map(async (dirs: fs.Dirent[], worker_index: number) => {
+        const magnetUris: MagnetUri[] = [];
+
         for (let directory of dirs) {
           const fmagnet = path_join(TORRENT_PATH, directory.name + ".magnet");
-          if (!(await fileExists(fmagnet))) return;
+          if (!(await fileExists(fmagnet))) {
+            await fs.promises.rm(fmagnet);
+            return;
+          }
 
           const magnet = (await fs.promises.readFile(fmagnet)).toString();
           const magnetUri = parseTorrent(magnet);
-          if (!magnetUri.infoHash) return;
+          if (!magnetUri.infoHash) {
+            await fs.promises.rm(fmagnet);
+            return;
+          }
 
-          await this._workers[worker_index].resume({
-            infoHash: magnetUri.infoHash,
-          });
+          magnetUris.push(magnetUri as any);
         }
+
+        await this._workers[worker_index].resumeMany({ magnetUris });
       }),
     );
   }
@@ -276,11 +322,11 @@ export class TorrentService {
     start = 0,
     end = 0,
   }: DownloadFileDto & { start?: number; end?: number }): Promise<Readable> {
-    const magnetUri = parseTorrent(magnet);
-    if (!magnetUri)
+    const magnetUri = parseTorrent(magnet) as MagnetUri;
+    if (!magnetUri || !magnetUri.infoHash)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
-    return (await this.findBest(magnetUri.infoHash)).download({
-      magnet,
+    return (await this.findBest(magnetUri)).download({
+      magnetUri,
       name,
       path,
       start,
@@ -292,8 +338,8 @@ export class TorrentService {
     { magnet, name, path }: DownloadPlaylistDto,
     options: { proto: string; host: string },
   ): Promise<{ filename: string; content: string }> {
-    const magnetUri = parseTorrent(magnet);
-    if (!magnetUri)
+    const magnetUri = parseTorrent(magnet) as MagnetUri;
+    if (!magnetUri || !magnetUri.infoHash)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
 
     const files = await this.listFiles({ magnet });
@@ -332,11 +378,11 @@ export class TorrentService {
   }
 
   async fileLength({ magnet, name, path }: DownloadFileDto): Promise<number> {
-    const magnetUri = parseTorrent(magnet);
-    if (!magnetUri)
+    const magnetUri = parseTorrent(magnet) as MagnetUri;
+    if (!magnetUri || !magnetUri.infoHash)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
-    return (await this.findBest(magnetUri.infoHash)).length({
-      magnet,
+    return (await this.findBest(magnetUri)).length({
+      magnetUri,
       name,
       path,
     });
@@ -345,10 +391,10 @@ export class TorrentService {
   async listFiles({
     magnet,
   }: ListFilesDto): Promise<{ name: string; path: string; size: number }[]> {
-    const magnetUri = parseTorrent(magnet);
-    if (!magnetUri)
+    const magnetUri = parseTorrent(magnet) as MagnetUri;
+    if (!magnetUri || !magnetUri.infoHash)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
-    return (await this.findBest(magnetUri.infoHash)).files({ magnet });
+    return (await this.findBest(magnetUri)).files({ magnetUri });
   }
 
   async status() {

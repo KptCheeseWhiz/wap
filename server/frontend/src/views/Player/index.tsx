@@ -13,50 +13,32 @@ import offline from "views/Offline/offline.gif";
 import Spinner from "components/Spinner";
 import Pad from "components/Pad";
 
-function Player() {
-  const { enqueueSnackbar } = useSnackbar();
-  const history = useHistory();
-
-  const [video, setVideo] = useState<{
+function Player({
+  video,
+}: {
+  video: {
     magnet: string;
     name: string;
     path: string;
     sig: string;
-  }>();
+  };
+}) {
+  const { enqueueSnackbar } = useSnackbar();
+
   const [isOk, setOk] = useState<boolean | null>(null);
   const [subtitles, setSubtitles] = useState<
     { language: string; title: string }[]
   >([]);
 
   useEffect(() => {
-    const { magnet, name, path, sig } = Object.fromEntries(
-      new URLSearchParams(history.location.search.slice(1)).entries(),
-    );
-    window.document.title = name;
-    setVideo({ magnet, name, path, sig });
-  }, [history.location.search]);
-
-  useEffect(() => {
     if (video)
       api
-        .player_head(video)
+        .torrent_verify(video)
         .then(() => setOk(true))
-        .then(() => {
-          const timeout = setTimeout(
-            () =>
-              enqueueSnackbar("The subtitles will load soon", {
-                variant: "info",
-              }),
-            1000,
-          );
-
-          return api
-            .player_subtitles(video)
-            .then(setSubtitles)
-            .finally(() => clearTimeout(timeout));
-        })
+        .then(() => api.player_subtitles(video))
+        .then(setSubtitles)
         .catch((e: Error) => {
-          enqueueSnackbar(e.message, { variant: "error" });
+          if (e.message) enqueueSnackbar(e.message, { variant: "error" });
           setOk(false);
         });
   }, [video]);
@@ -69,6 +51,7 @@ function Player() {
           height: "100vh",
           display: "flex",
           flexDirection: "column",
+          backgroundColor: "#303030",
         }}
         src={offline}
       />
@@ -82,6 +65,7 @@ function Player() {
         height: "100vh",
         display: "flex",
         flexDirection: "row",
+        backgroundColor: "#303030",
       }}
     >
       <Pad />
@@ -92,12 +76,13 @@ function Player() {
           source={{
             type: "video",
             // Try them all, maybe it will be in the right format
-            sources: ["video/mp4", "video/webm"/*, "video/ogg", "video/3gp"*/].map(
-              (type) => ({
-                src: toURL(window.location.origin + "/api/player/play", video),
-                type,
-              }),
-            ),
+            sources: [
+              "video/mp4",
+              "video/webm" /*, "video/ogg", "video/3gp"*/,
+            ].map((type) => ({
+              src: toURL(window.location.origin + "/api/player/play", video),
+              type,
+            })),
             tracks: subtitles.map(({ language, title }, i) => ({
               src: toURL(window.location.origin + "/api/player/subtitle", {
                 ...video,
@@ -108,7 +93,10 @@ function Player() {
               srclang: language,
             })),
           }}
-          options={{ captions: { active: true, update: true } }}
+          options={{
+            captions: { active: true, update: true },
+            fullscreen: { enabled: true },
+          }}
         />
       ) : (
         <Spinner size={250} />

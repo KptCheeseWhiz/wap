@@ -53,7 +53,7 @@ export class PlayerController {
       end,
     });
 
-    stream.pipe(res.once("close", () => stream.destroy()));
+    stream.pipe(res).once("close", () => stream.destroy());
   }
 
   @Get("subtitles")
@@ -70,7 +70,6 @@ export class PlayerController {
     getSubtitlesDto: GetSubtitlesDto & { sig: string },
     @Res() res: Response,
   ) {
-    const stream = await this.playerService.getSubtitle(getSubtitlesDto);
-    stream.pipe(res.once("close", () => stream.destroy()));
+    (await this.playerService.getSubtitle(getSubtitlesDto)).pipe(res);
   }
 }

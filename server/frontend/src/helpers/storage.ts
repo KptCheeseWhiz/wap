@@ -1,4 +1,4 @@
-const storage = (window as any).IS_ELECTRON
+const storage = (window as any).ELECTRON
   ? (window as any).storage
   : window.localStorage;
 

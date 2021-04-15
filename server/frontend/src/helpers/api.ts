@@ -48,15 +48,13 @@ export const torrent_files = async (params: {
 export const torrent_status = async (): Promise<any> =>
   await fetch("/api/torrent/status");
 
-export const player_head = async (params: {
+export const torrent_verify = async (params: {
   magnet: string;
   name: string;
   path: string;
   sig: string;
 }): Promise<void> =>
-  await fetch(toURL(window.location.origin + "/api/player/play", params), {
-    method: "HEAD",
-  });
+  await fetch(toURL(window.location.origin + "/api/torrent/verify", params));
 
 export const player_subtitles = async (params: {
   magnet: string;

@@ -9,8 +9,8 @@ import { Readable } from "stream";
 import { join as path_join } from "path";
 import * as fs from "fs";
 
-import * as parseTorrent from "parse-torrent";
-import * as WebTorrent from "webtorrent";
+import parseTorrent, { Instance } from "parse-torrent";
+import WebTorrent from "webtorrent";
 
 import PortHelper from "@/common/port.helper";
 import Logger from "@/common/logger.helper";
@@ -22,6 +22,10 @@ const TORRENT_EXPIRATION = +process.env.TORRENT_EXPIRATION || 604800000;
 const TORRENT_PRUNE_INTERVAL = +process.env.TORRENT_PRUNE_INTERVAL || 0;
 const TORRENT_THROTTLE = +process.env.TORRENT_THROTTLE || 10;
 const TORRENT_FILE_TIMEOUT = +process.env.TORRENT_FILE_TIMEOUT || 15000;
+
+interface MagnetUri extends Instance {
+  infoHash: string;
+}
 
 class TorrentWorker {
   private _id: string;
@@ -41,6 +45,7 @@ class TorrentWorker {
     this._flclient = new WebTorrent();
 
     this._mainPort.passthru<TorrentWorker>(this, [
+      "done",
       "download",
       "drop",
       "length",
@@ -92,14 +97,49 @@ class TorrentWorker {
     this._mainPort.emit("ready");
   }
 
+  async done({
+    magnetUri,
+    name,
+    path,
+  }: {
+    magnetUri: MagnetUri;
+    name?: string;
+    path?: string;
+  }): Promise<void> {
+    try {
+      const torrent = this._dlclient.get(magnetUri.infoHash);
+      if (!torrent) throw new Error("Torrent not found");
+
+      return new Promise<void>((resolve, reject) => {
+        if (!name) {
+          if (torrent.progress === 1) return resolve();
+          torrent.once("done", () => resolve());
+        } else {
+          const fullpath = path_join(path, name);
+          const file = torrent.files.find((file) => file.path === fullpath);
+          if (!file)
+            return reject(
+              new Error(`File ${fullpath} not found in ${magnetUri.infoHash}`),
+            );
+
+          if (file.progress === 1) return resolve();
+          file.once("done", () => resolve());
+        }
+      });
+    } catch (e) {
+      Logger(this._id).error(e.message, e.stack);
+      throw e;
+    }
+  }
+
   async download({
-    magnet,
+    magnetUri,
     name,
     path,
     start,
     end,
   }: {
-    magnet: string;
+    magnetUri: MagnetUri;
     name: string;
     path: string;
     start?: number;
@@ -113,10 +153,6 @@ class TorrentWorker {
     try {
       this._pending++;
 
-      const magnetUri = parseTorrent(magnet);
-      if (!magnetUri.infoHash) throw new Error("Invalid magnet");
-      (magnetUri as any).so = "-1";
-
       return await new Promise<{
         infoHash: string;
         length: number;
@@ -124,10 +160,10 @@ class TorrentWorker {
         _transferList: TransferListItem[];
       }>(async (resolve, reject) => {
         const torrent =
-          this._dlclient.get(magnet) ||
+          this._dlclient.get(magnetUri.infoHash) ||
           (await new Promise<WebTorrent.Torrent>((resolve) =>
             this._dlclient.add(
-              parseTorrent.toMagnetURI(magnetUri),
+              parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
               {
                 path: path_join(TORRENT_PATH, magnetUri.infoHash),
               },
@@ -137,7 +173,7 @@ class TorrentWorker {
 
                 await fs.promises.writeFile(
                   path_join(TORRENT_PATH, magnetUri.infoHash + ".magnet"),
-                  magnet,
+                  parseTorrent.toMagnetURI(magnetUri),
                 );
 
                 resolve(torrent);
@@ -159,6 +195,10 @@ class TorrentWorker {
           file.uploaded = 0;
 
           Logger(this._id).log(`${torrent.infoHash} ${fullpath} added`);
+          if (file.progress !== 1)
+            file.once("done", () =>
+              Logger(this._id).log(`${torrent.infoHash} ${fullpath} done`),
+            );
         }
         file.expiresAt = new Date(Date.now() + TORRENT_EXPIRATION);
         file.handles++;
@@ -199,6 +239,7 @@ class TorrentWorker {
           file.handles--;
         });
 
+        this._pending--;
         resolve({
           infoHash: magnetUri.infoHash,
           length: file.length,
@@ -208,19 +249,18 @@ class TorrentWorker {
       });
     } catch (e) {
       Logger(this._id).error(e.message, e.stack);
-      throw e;
-    } finally {
       this._pending--;
+      throw e;
     }
   }
 
-  async drop({ infoHash }: { infoHash: string }): Promise<void> {
+  async drop({ magnetUri }: { magnetUri: MagnetUri }): Promise<void> {
     return new Promise<void>(async (resolve, reject) => {
       try {
-        Logger(this._id).log(`${infoHash} dropped`);
-        if (this._dlclient.get(infoHash))
+        Logger(this._id).log(`${magnetUri.infoHash} dropped`);
+        if (this._dlclient.get(magnetUri.infoHash))
           return this._dlclient.remove(
-            infoHash,
+            magnetUri.infoHash,
             { destroyStore: false },
             (err) => (err ? reject(err) : resolve()),
           );
@@ -233,24 +273,20 @@ class TorrentWorker {
   }
 
   async length({
-    magnet,
+    magnetUri,
     name,
     path,
   }: {
-    magnet: string;
+    magnetUri: MagnetUri;
     name?: string;
     path?: string;
   }): Promise<number> {
-    const magnetUri = parseTorrent(magnet);
-    if (!magnetUri.infoHash) throw new Error("Invalid magnet");
-    (magnetUri as any).so = "-1";
-
     // Asking for length means you want to download it
     const torrent =
-      this._dlclient.get(magnet) ||
+      this._dlclient.get(magnetUri.infoHash) ||
       (await new Promise<WebTorrent.Torrent>((resolve) =>
         this._dlclient.add(
-          parseTorrent.toMagnetURI(magnetUri),
+          parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
           {
             path: path_join(TORRENT_PATH, magnetUri.infoHash),
           },
@@ -260,7 +296,7 @@ class TorrentWorker {
 
             await fs.promises.writeFile(
               path_join(TORRENT_PATH, magnetUri.infoHash + ".magnet"),
-              magnet,
+              parseTorrent.toMagnetURI(magnetUri),
             );
 
             resolve(torrent);
@@ -278,22 +314,20 @@ class TorrentWorker {
   }
 
   async files({
-    magnet,
+    magnetUri,
   }: {
-    magnet: string;
+    magnetUri: MagnetUri;
   }): Promise<{ name: string; path: string; size: number }[]> {
     try {
       this._pending++;
-
-      const magnetUri = parseTorrent(magnet);
-      if (!magnetUri.infoHash) throw new Error("Invalid magnet");
-      (magnetUri as any).so = "-1";
 
       Logger(this._id).log(`${magnetUri.infoHash} fetching files`);
 
       const path = path_join(TORRENT_PATH, magnetUri.infoHash);
 
-      const torrent = this._dlclient.get(magnet) || this._flclient.get(magnet);
+      const torrent =
+        this._dlclient.get(magnetUri.infoHash) ||
+        this._flclient.get(magnetUri.infoHash);
       if (torrent) {
         const files = torrent.files.map(({ name, path, length: size }) => ({
           name,
@@ -303,18 +337,20 @@ class TorrentWorker {
         Logger(this._id).log(
           `${magnetUri.infoHash} knew ${files.length} files`,
         );
+        this._pending--;
         return files;
       }
 
       return await new Promise<{ name: string; path: string; size: number }[]>(
         (resolve, reject) => {
           const timeout = setTimeout(() => {
-            if (this._flclient.get(magnet)) this._flclient.remove(magnet);
+            if (this._flclient.get(magnetUri.infoHash))
+              this._flclient.remove(magnetUri.infoHash);
             reject(new Error("Timed out!"));
           }, TORRENT_FILE_TIMEOUT);
 
           this._flclient.add(
-            parseTorrent.toMagnetURI(magnetUri),
+            parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
             {
               path,
             },
@@ -332,8 +368,10 @@ class TorrentWorker {
               );
 
               await new Promise<void>((resolve, reject) =>
-                this._flclient.remove(magnet, { destroyStore: true }, (err) =>
-                  err ? reject(err) : resolve(),
+                this._flclient.remove(
+                  magnetUri.infoHash,
+                  { destroyStore: true },
+                  (err) => (err ? reject(err) : resolve()),
                 ),
               );
               await fs.promises.rm(path, { recursive: true, force: true });
@@ -341,6 +379,7 @@ class TorrentWorker {
               Logger(this._id).log(
                 `${magnetUri.infoHash} found ${files.length} files`,
               );
+              this._pending--;
               resolve(files);
             },
           );
@@ -348,9 +387,8 @@ class TorrentWorker {
       );
     } catch (e) {
       Logger(this._id).error(e.message, e.stack);
-      throw e;
-    } finally {
       this._pending--;
+      throw e;
     }
   }
 
@@ -382,6 +420,8 @@ class TorrentWorker {
         ) {
           Logger(this._id).log(`${torrent.infoHash} is expired`);
           await this.remove({ infoHash: torrent.infoHash, force: true });
+
+          this._mainPort.emit("expire", { infoHash: torrent.infoHash });
         }
       }
     } catch (e) {
@@ -432,9 +472,14 @@ class TorrentWorker {
     });
   }
 
-  async resume({ infoHash }: { infoHash: string }): Promise<boolean> {
-    return new Promise(async (resolve, reject) => {
-      try {
+  async resume({
+    infoHash,
+  }: {
+    infoHash: string;
+  }): Promise<{ name: string; path: string }[]> {
+    try {
+      this._pending++;
+      return new Promise(async (resolve) => {
         Logger(this._id).log(`${infoHash} resuming`);
 
         const path = path_join(TORRENT_PATH, infoHash);
@@ -442,18 +487,6 @@ class TorrentWorker {
         const createdAt = (
           await fs.promises.stat(path_join(TORRENT_PATH, infoHash + ".magnet"))
         ).birthtime;
-
-        if (createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) {
-          Logger(this._id).log(`${infoHash} expired`);
-          await Promise.all([
-            fs.promises.rm(path_join(TORRENT_PATH, infoHash + ".magnet")),
-            fs.promises.rm(path_join(TORRENT_PATH, infoHash), {
-              recursive: true,
-              force: true,
-            }),
-          ]);
-          return resolve(false);
-        }
 
         const magnet = (
           await fs.promises.readFile(
@@ -464,6 +497,25 @@ class TorrentWorker {
         const magnetUri = parseTorrent(magnet);
         if (!magnetUri.infoHash) return;
         (magnetUri as any).so = "-1";
+
+        if (createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) {
+          Logger(this._id).log(`${infoHash} expired`);
+          if (this._dlclient.get(magnet)) this._dlclient.remove(magnet);
+          await Promise.all([
+            fs.promises.rm(path_join(TORRENT_PATH, infoHash + ".magnet")),
+            fs.promises.rm(path_join(TORRENT_PATH, infoHash), {
+              recursive: true,
+              force: true,
+            }),
+          ]);
+          this._pending--;
+          return resolve([]);
+        }
+
+        if (this._dlclient.get(magnet)) {
+          Logger(this._id).log(`${infoHash} already present`);
+          return true;
+        }
 
         const torrent = await new Promise<WebTorrent.Torrent>((resolve) =>
           this._dlclient.add(
@@ -479,6 +531,7 @@ class TorrentWorker {
           ),
         );
 
+        const resumed: { name: string; path: string }[] = [];
         for (const file of torrent.files)
           if (await fileExists(path_join(TORRENT_PATH, infoHash, file.path))) {
             file.managed = true;
@@ -488,14 +541,20 @@ class TorrentWorker {
             file.uploaded = 0;
 
             Logger(this._id).log(`${infoHash} ${file.name} resumed`);
+            resumed.push({
+              name: file.name,
+              path: file.path.substr(0, file.path.length - file.name.length),
+            });
             file.select();
           }
-        resolve(true);
-      } catch (e) {
-        Logger(this._id).error(e.message, e.stack);
-        reject(e);
-      }
-    });
+        this._pending--;
+        resolve(resumed);
+      });
+    } catch (e) {
+      Logger(this._id).error(e.message, e.stack);
+      this._pending--;
+      throw e;
+    }
   }
 
   async status() {

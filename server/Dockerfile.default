@@ -13,7 +13,7 @@ RUN npm install
 
 # Build the application in /app/out
 COPY ./backend/ /app/
-RUN touch /app/src/.env
+RUN rm /app/src/.env && touch /app/src/.env
 RUN npm run build
 
 ### FRONTEND

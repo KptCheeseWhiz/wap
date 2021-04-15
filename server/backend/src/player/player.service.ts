@@ -4,21 +4,25 @@ import { Readable } from "stream";
 import * as fs from "fs";
 
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import * as parseTorrent from "parse-torrent";
-import * as ffmpeg_static from "ffmpeg-static";
+import parseTorrent from "parse-torrent";
+import ffmpeg_static from "ffmpeg-static";
 import { path as ffprobe_static } from "ffprobe-static";
 
 import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
 import { ListSubtitlesDto } from "./dto/listSubtitles.dto";
 
 import { TorrentService } from "@/torrent/torrent.service";
-import { fileExists } from "@/common/utils.helper";
+import { fileExists, touch } from "@/common/utils.helper";
 
 const TORRENT_PATH = process.env.TORRENT_PATH || "./torrents";
 
 @Injectable()
 export class PlayerService {
-  constructor(private torrentService: TorrentService) {}
+  constructor(private torrentService: TorrentService) {
+    fileExists(ffmpeg_static).then(
+      (exists) => !exists && require("ffmpeg-static/install"),
+    );
+  }
 
   async listSubtitles({
     magnet,
@@ -97,8 +101,8 @@ export class PlayerService {
         HttpStatus.NOT_ACCEPTABLE,
       );
 
-    if (await fileExists(fullpath + "__subtitle." + index + ".vtt"))
-      return fs.createReadStream(fullpath + "__subtitle." + index + ".vtt");
+    if (await fileExists(fullpath + "__subtitle." + +index + ".vtt"))
+      return fs.createReadStream(fullpath + "__subtitle." + +index + ".vtt");
 
     const subs: {
       title: string;
@@ -113,6 +117,8 @@ export class PlayerService {
       throw new HttpException("Subtitle not found", HttpStatus.NOT_FOUND);
 
     return new Promise<Readable>((resolve) => {
+      const tmpfile = fullpath + "__subtitle." + +index + ".vtt_" + Date.now();
+
       const spawn = cp_spawn(
         ffmpeg_static,
         [
@@ -136,10 +142,18 @@ export class PlayerService {
         .downloadFile({ magnet, name, path })
         .then((stream) => stream.pipe(spawn.stdin));
 
-      const cws = fs.createWriteStream(`${fullpath}__subtitle.${index}.vtt`);
-      spawn.stdout
-        .on("data", (buffer: Buffer) => cws.write(buffer))
-        .once("close", () => cws.close());
+      const cws = fs.createWriteStream(tmpfile);
+      spawn.stdout.on("data", (buffer: Buffer) => cws.write(buffer));
+      spawn.stdin.once("error", () => {});
+      spawn.once("exit", async (code) => {
+        cws.close();
+        if (code === 0)
+          await fs.promises.copyFile(
+            tmpfile,
+            fullpath + "__subtitle." + +index + ".vtt",
+          );
+        await fs.promises.rm(tmpfile);
+      });
 
       resolve(spawn.stdout);
     });

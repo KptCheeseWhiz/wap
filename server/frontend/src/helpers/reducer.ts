@@ -14,6 +14,13 @@ export interface IState {
     sort?: string;
     order?: string;
   };
+  video: {
+    open: boolean;
+    magnet?: string;
+    name?: string;
+    path?: string;
+    sig?: string;
+  };
 }
 
 export type IActionType =
@@ -28,7 +35,18 @@ export type IAction =
   | { type: "SET_QUERY"; value: string }
   | { type: "SET_PAGE"; value: number }
   | { type: "SET_SORT_AND_ORDER"; value: { sort: string; order: string } }
-  | { type: "SET_FAVORITES"; value: string[] };
+  | { type: "SET_FAVORITES"; value: string[] }
+  | {
+      type: "SET_VIDEO";
+      value: {
+        open: boolean;
+        magnet?: string;
+        name?: string;
+        path?: string;
+        sig?: string;
+      };
+    }
+  | { type: "SET_VIDEO_OPEN"; value: boolean };
 
 export interface IContextProps {
   state: IState;
@@ -46,12 +64,15 @@ export const initialState: IState = {
     sort: query.get("sort") || undefined,
     order: query.get("order") || undefined,
   },
+  video: {
+    open: false,
+  },
 };
 
 export function reducer(state: IState, action: IAction): IState {
   switch (action.type) {
     case "SET_PROGRESS":
-      return _merge({}, state, { progress: action.value });
+      return { ...state, progress: action.value };
     case "SET_QUERY":
       return _merge(
         {},
@@ -67,7 +88,23 @@ export function reducer(state: IState, action: IAction): IState {
       });
     case "SET_FAVORITES":
       storage.set("favorites", action.value);
-      return _merge({}, state, { favorites: action.value });
+      return { ...state, favorites: action.value };
+    case "SET_VIDEO":
+      return _merge({}, state, {
+        video: {
+          open: action.value.open,
+          magnet: action.value.magnet,
+          name: action.value.name,
+          path: action.value.path,
+          sig: action.value.sig,
+        },
+      });
+    case "SET_VIDEO_OPEN":
+      return _merge({}, state, {
+        video: {
+          open: action.value,
+        },
+      });
     default:
       return state;
   }

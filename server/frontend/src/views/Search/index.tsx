@@ -18,6 +18,7 @@ import Pagination from "views/Search/Pagination";
 import TorrentRow from "views/Search/TorrentRow";
 import Favorites from "views/Search/Favorites";
 import Seasonal from "views/Search/Seasonal";
+import PlayerModal from "views/Search/PlayerModal";
 
 import { context } from "helpers/reducer";
 import * as api from "helpers/api";
@@ -55,7 +56,9 @@ function Search() {
       .search({ ...state.search })
       .then(setResult)
       .then(() => history.push(toQuery("/search", state.search)))
-      .catch((e: Error) => enqueueSnackbar(e.message, { variant: "error" }))
+      .catch((e: Error) => {
+        if (e.message) enqueueSnackbar(e.message, { variant: "error" });
+      })
       .finally(() => dispatch({ type: "SET_PROGRESS", value: 100 }));
   };
 
@@ -102,12 +105,21 @@ function Search() {
   const pageCount = result ? Math.ceil(result.total / result.per_page) : 1;
 
   return (
-    <span style={{ flexDirection: "column" }}>
+    <span
+      style={{
+        flexDirection: "column",
+      }}
+    >
       <Seasonal />
       <LoadingBar />
       <Favorites />
       <Paper>
-        <span style={{ display: "flex", flexDirection: "column" }}>
+        <span
+          style={{
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <SearchBar />
           {result && columns && (
             <>
@@ -147,6 +159,7 @@ function Search() {
           )}
         </span>
       </Paper>
+      <PlayerModal />
     </span>
   );
 }

@@ -38,7 +38,7 @@ function Offline() {
             variant="h1"
             align="center"
           >
-            {"I cannyot tawk t-to my sewvew... Pwease twy again watew ow, if the pwobwem is on youw e-end, when you have a w-wowking intewnyet connyection >w<"}
+            {"I cannyot tawk t-to my sewvew... Pwease twy again watew >w<"}
           </Typography>
         </CardMedia>
       </Card>

@@ -9,6 +9,7 @@ const fetch = async <T>(
 
   return await window.fetch(input, init).then(async (resp) => {
     if (resp.headers.get("content-type")?.indexOf("application/json") !== -1) {
+      if (resp.status === 204) return;
       const json = await resp.json();
       if (!resp.ok) {
         console.error(json);
