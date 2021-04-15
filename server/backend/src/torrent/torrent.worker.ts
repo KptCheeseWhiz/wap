@@ -17,7 +17,7 @@ import Logger from "@/common/logger.helper";
 import { sleep, fileExists } from "@/common/utils.helper";
 
 const TORRENT_PATH = process.env.TORRENT_PATH || "./torrents";
-const TORRENT_MAX_RATIO = +process.env.TORRENT_MAX_RATIO || 2;
+const TORRENT_MAX_RATIO = +process.env.TORRENT_MAX_RATIO || 0;
 const TORRENT_EXPIRATION = +process.env.TORRENT_EXPIRATION || 604800000;
 const TORRENT_PRUNE_INTERVAL = +process.env.TORRENT_PRUNE_INTERVAL || 0;
 const TORRENT_THROTTLE = +process.env.TORRENT_THROTTLE || 10;
@@ -421,7 +421,7 @@ class TorrentWorker {
           Logger(this._id).log(`${torrent.infoHash} is expired`);
           await this.remove({ infoHash: torrent.infoHash, force: true });
 
-          this._mainPort.emit("expire", { infoHash: torrent.infoHash });
+          this._mainPort.send("expire", { infoHash: torrent.infoHash });
         }
       }
     } catch (e) {

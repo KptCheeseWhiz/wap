@@ -17,7 +17,11 @@ exception.on();
 const HOME = path_join(os_homedir(), ".wap");
 if (!fs_exists(HOME)) fs_mkdir(HOME);
 
+process.env.TORRENT_MAX_WORKERS = "2";
 process.env.TORRENT_PATH = HOME;
+process.env.TORRENT_MAX_RATIO = "0";
+process.env.TORRENT_EXPIRATION = "10800000";
+process.env.TORRENT_PRUNE_INTERVAL = "0";
 process.env.HMAC_SECRET = crypto_randomBytes(64).toString("hex");
 
 import bootstrap from "./app/app";
@@ -36,7 +40,7 @@ import bootstrap from "./app/app";
 
   await electron.app.whenReady();
 
-  const PORT = await bootstrap(process.env.HOST, +process.env.PORT)
+  const PORT = await bootstrap("127.0.0.1", 0)
     .then((app: any) => app.getUrl())
     .then((url: string) => Number(url.toString().split(":").pop()));
 

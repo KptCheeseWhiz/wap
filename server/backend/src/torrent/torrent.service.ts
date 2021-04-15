@@ -68,6 +68,9 @@ class TorrentWorkerBridge {
       });
 
     this._mainPort = new PortHelper(port2);
+    this._mainPort.recv("expire", ({ infoHash }: { infoHash: string }) => {
+      delete this._magnetUris[infoHash];
+    });
     await this._mainPort.wait<void>("ready");
   }
 

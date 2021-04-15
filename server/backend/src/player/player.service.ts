@@ -12,7 +12,7 @@ import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
 import { ListSubtitlesDto } from "./dto/listSubtitles.dto";
 
 import { TorrentService } from "@/torrent/torrent.service";
-import { fileExists, touch } from "@/common/utils.helper";
+import { fileExists } from "@/common/utils.helper";
 
 const TORRENT_PATH = process.env.TORRENT_PATH || "./torrents";
 
@@ -35,7 +35,11 @@ export class PlayerService {
 
     const files = await this.torrentService.listFiles({ magnet });
     const file = files.find((file) => file.name === name && file.path === path);
-    if (!file) throw new HttpException("File not found", HttpStatus.NOT_FOUND);
+    if (!file)
+      throw new HttpException(
+        `File ${path_join(path, name)} not found in ${magnetUri.infoHash}`,
+        HttpStatus.NOT_FOUND,
+      );
 
     const fullpath = path_join(TORRENT_PATH, magnetUri.infoHash, path, name);
 
@@ -95,14 +99,15 @@ export class PlayerService {
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
 
     const fullpath = path_join(TORRENT_PATH, magnetUri.infoHash, path, name);
+
     if (!(await fileExists(fullpath + "__subtitles.json")))
       throw new HttpException(
         "List the subtitles before fetching one",
         HttpStatus.NOT_ACCEPTABLE,
       );
 
-    if (await fileExists(fullpath + "__subtitle." + +index + ".vtt"))
-      return fs.createReadStream(fullpath + "__subtitle." + +index + ".vtt");
+    if (await fileExists(fullpath + "__subtitle_" + +index + ".vtt"))
+      return fs.createReadStream(fullpath + "__subtitle_" + +index + ".vtt");
 
     const subs: {
       title: string;
@@ -117,7 +122,7 @@ export class PlayerService {
       throw new HttpException("Subtitle not found", HttpStatus.NOT_FOUND);
 
     return new Promise<Readable>((resolve) => {
-      const tmpfile = fullpath + "__subtitle." + +index + ".vtt_" + Date.now();
+      const tmpfile = fullpath + "__subtitle_" + +index + ".vtt_" + Date.now();
 
       const spawn = cp_spawn(
         ffmpeg_static,
@@ -131,10 +136,10 @@ export class PlayerService {
           `webvtt`,
           `-f`,
           `webvtt`,
-          `pipe:1`,
+          tmpfile,
         ],
         {
-          stdio: ["pipe", "pipe", "ignore"],
+          stdio: ["pipe", "ignore", "ignore"],
         },
       );
 
@@ -142,15 +147,12 @@ export class PlayerService {
         .downloadFile({ magnet, name, path })
         .then((stream) => stream.pipe(spawn.stdin));
 
-      const cws = fs.createWriteStream(tmpfile);
-      spawn.stdout.on("data", (buffer: Buffer) => cws.write(buffer));
       spawn.stdin.once("error", () => {});
       spawn.once("exit", async (code) => {
-        cws.close();
         if (code === 0)
           await fs.promises.copyFile(
             tmpfile,
-            fullpath + "__subtitle." + +index + ".vtt",
+            fullpath + "__subtitle_" + +index + ".vtt",
           );
         await fs.promises.rm(tmpfile);
       });
