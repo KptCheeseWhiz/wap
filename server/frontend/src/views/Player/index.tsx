@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 
-import { useHistory } from "react-router";
 import { useSnackbar } from "notistack";
 import Plyr from "plyr-react";
 import "plyr-react/dist/plyr.css";
@@ -46,6 +45,7 @@ function Player({
   if (isOk === false)
     return (
       <img
+        alt="An error has occured"
         style={{
           width: "100vw",
           height: "100vh",

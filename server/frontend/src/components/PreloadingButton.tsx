@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import { useSnackbar } from "notistack";
 import { EventEmitter } from "events";
 import { Button, ButtonProps } from "@material-ui/core";
-import { saveAs } from "file-saver";
 
 import Spinner from "components/Spinner";
 
@@ -64,8 +63,8 @@ const download = (
   return ee;
 };
 
-function DownloadingButton(
-  props: { name: string; href: string } & ButtonProps,
+function PreloadingButton(
+  props: { href: string; onEnded?: () => void } & ButtonProps,
 ) {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -74,18 +73,14 @@ function DownloadingButton(
 
   useEffect(() => {
     if (!eventemitter) return;
-    let chunks: Uint8Array[] = [];
-    eventemitter.once("done", (cancel) => {
-      if (!cancel) saveAs(new Blob(chunks), props.name);
-      chunks = [];
+    eventemitter.once("done", () => {
+      if (props.onEnded) props.onEnded();
       setEventEmitter(null);
     });
     eventemitter.once("error", (err) => {
       enqueueSnackbar(err.message, { variant: "error" });
-      chunks = [];
       setEventEmitter(null);
     });
-    eventemitter.on("chunk", (chunk: Uint8Array) => chunks.push(chunk));
     eventemitter.on("progress", (progress: number) =>
       setProgress(progress * 100),
     );
@@ -107,10 +102,10 @@ function DownloadingButton(
       {eventemitter !== null ? (
         <Spinner size={20} progress={progress} />
       ) : (
-        "Download"
+        "Preload"
       )}
     </Button>
   );
 }
 
-export default DownloadingButton;
+export default PreloadingButton;

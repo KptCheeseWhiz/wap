@@ -51,6 +51,7 @@ class TorrentWorker {
       "length",
       "files",
       "load",
+      "preload",
       "prune",
       "remove",
       "resume",
@@ -145,7 +146,6 @@ class TorrentWorker {
     start?: number;
     end?: number;
   }): Promise<{
-    infoHash: string;
     length: number;
     port: MessagePort;
     _transferList: TransferListItem[];
@@ -154,7 +154,6 @@ class TorrentWorker {
       this._pending++;
 
       return await new Promise<{
-        infoHash: string;
         length: number;
         port: MessagePort;
         _transferList: TransferListItem[];
@@ -241,7 +240,6 @@ class TorrentWorker {
 
         this._pending--;
         resolve({
-          infoHash: magnetUri.infoHash,
           length: file.length,
           port: port1,
           _transferList: [port1],
@@ -317,7 +315,9 @@ class TorrentWorker {
     magnetUri,
   }: {
     magnetUri: MagnetUri;
-  }): Promise<{ name: string; path: string; size: number }[]> {
+  }): Promise<
+    { name: string; path: string; length: number; progress: number }[]
+  > {
     try {
       this._pending++;
 
@@ -329,10 +329,11 @@ class TorrentWorker {
         this._dlclient.get(magnetUri.infoHash) ||
         this._flclient.get(magnetUri.infoHash);
       if (torrent) {
-        const files = torrent.files.map(({ name, path, length: size }) => ({
+        const files = torrent.files.map(({ name, path, length, progress }) => ({
           name,
           path: path.substr(0, path.length - name.length),
-          size,
+          length,
+          progress,
         }));
         Logger(this._id).log(
           `${magnetUri.infoHash} knew ${files.length} files`,
@@ -341,50 +342,51 @@ class TorrentWorker {
         return files;
       }
 
-      return await new Promise<{ name: string; path: string; size: number }[]>(
-        (resolve, reject) => {
-          const timeout = setTimeout(() => {
-            if (this._flclient.get(magnetUri.infoHash))
-              this._flclient.remove(magnetUri.infoHash);
-            reject(new Error("Timed out!"));
-          }, TORRENT_FILE_TIMEOUT);
+      return await new Promise<
+        { name: string; path: string; length: number; progress: number }[]
+      >((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (this._flclient.get(magnetUri.infoHash))
+            this._flclient.remove(magnetUri.infoHash);
+          reject(new Error("Timed out!"));
+        }, TORRENT_FILE_TIMEOUT);
 
-          this._flclient.add(
-            parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
-            {
-              path,
-            },
-            async (torrent) => {
-              clearTimeout(timeout);
+        this._flclient.add(
+          parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
+          {
+            path,
+          },
+          async (torrent) => {
+            clearTimeout(timeout);
 
-              torrent.files.forEach((file) => file.deselect());
-              torrent.deselect(0, torrent.pieces.length - 1, 0);
-              const files = torrent.files.map(
-                ({ name, path, length: size }) => ({
-                  name,
-                  path: path.substr(0, path.length - name.length),
-                  size,
-                }),
-              );
+            torrent.files.forEach((file) => file.deselect());
+            torrent.deselect(0, torrent.pieces.length - 1, 0);
+            const files = torrent.files.map(
+              ({ name, path, length, progress }) => ({
+                name,
+                path: path.substr(0, path.length - name.length),
+                length,
+                progress,
+              }),
+            );
 
-              await new Promise<void>((resolve, reject) =>
-                this._flclient.remove(
-                  magnetUri.infoHash,
-                  { destroyStore: true },
-                  (err) => (err ? reject(err) : resolve()),
-                ),
-              );
-              await fs.promises.rm(path, { recursive: true, force: true });
+            await new Promise<void>((resolve, reject) =>
+              this._flclient.remove(
+                magnetUri.infoHash,
+                { destroyStore: true },
+                (err) => (err ? reject(err) : resolve()),
+              ),
+            );
+            await fs.promises.rm(path, { recursive: true, force: true });
 
-              Logger(this._id).log(
-                `${magnetUri.infoHash} found ${files.length} files`,
-              );
-              this._pending--;
-              resolve(files);
-            },
-          );
-        },
-      );
+            Logger(this._id).log(
+              `${magnetUri.infoHash} found ${files.length} files`,
+            );
+            this._pending--;
+            resolve(files);
+          },
+        );
+      });
     } catch (e) {
       Logger(this._id).error(e.message, e.stack);
       this._pending--;
@@ -404,6 +406,116 @@ class TorrentWorker {
       ) +
       this._pending * 1000000000
     );
+  }
+
+  async preload({
+    magnetUri,
+    name,
+    path,
+  }: {
+    magnetUri: MagnetUri;
+    name: string;
+    path: string;
+  }): Promise<{ port: MessagePort; _transferList: TransferListItem[] }> {
+    try {
+      this._pending++;
+
+      return await new Promise<{
+        port: MessagePort;
+        _transferList: TransferListItem[];
+      }>(async (resolve, reject) => {
+        const torrent =
+          this._dlclient.get(magnetUri.infoHash) ||
+          (await new Promise<WebTorrent.Torrent>((resolve) =>
+            this._dlclient.add(
+              parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
+              {
+                path: path_join(TORRENT_PATH, magnetUri.infoHash),
+              },
+              async (torrent) => {
+                torrent.files.forEach((file) => file.deselect());
+                torrent.deselect(0, torrent.pieces.length - 1, 0);
+
+                await fs.promises.writeFile(
+                  path_join(TORRENT_PATH, magnetUri.infoHash + ".magnet"),
+                  parseTorrent.toMagnetURI(magnetUri),
+                );
+
+                resolve(torrent);
+              },
+            ),
+          ));
+
+        const fullpath = path_join(path, name);
+        const file = torrent.files.find((file) => file.path === fullpath);
+        if (!file)
+          return reject(
+            new Error(`File ${fullpath} not found in ${magnetUri.infoHash}`),
+          );
+
+        if (!file.managed) {
+          file.managed = true;
+          file.createdAt = new Date();
+          file.handles = 0;
+          file.uploaded = 0;
+
+          Logger(this._id).log(`${torrent.infoHash} ${fullpath} preloading`);
+          if (file.progress !== 1)
+            file.once("done", () =>
+              Logger(this._id).log(`${torrent.infoHash} ${fullpath} done`),
+            );
+        } else if (file.progress === 1) {
+          this._pending--;
+          return resolve({ port: null, _transferList: [] });
+        }
+        file.expiresAt = new Date(Date.now() + TORRENT_EXPIRATION);
+
+        const { port1, port2 } = new MessageChannel();
+        const uploadPort = new PortHelper(port2);
+
+        let progress = 0;
+
+        const stream = new Readable()
+          .wrap(
+            file.createReadStream({
+              start: 0,
+              end: file.length,
+            }),
+          )
+          .on("data", function (this: Readable) {
+            const tosend = Math.floor(file.progress * 100 - progress);
+            if (tosend === 0) return;
+
+            this.pause();
+            uploadPort
+              .send("progress", {
+                progress: Buffer.from(`\x00`.repeat(tosend)),
+              })
+              .then((destroyed: boolean) => {
+                if (destroyed) return this.destroy();
+                progress += tosend;
+                setTimeout(() => this.resume(), TORRENT_THROTTLE);
+              })
+              .catch((err: Error) => {
+                if (err.message !== "close") throw err;
+              });
+          });
+
+        uploadPort.waitClose().then(() => {
+          if (!stream.destroyed) stream.destroy();
+        });
+
+        this._pending--;
+        resolve({
+          port: port1,
+          _transferList: [port1],
+        });
+      });
+    } catch (e) {
+      Logger(this._id).error(e.message, e.stack);
+      this._pending--;
+      throw e;
+    }
   }
 
   async prune(): Promise<void> {

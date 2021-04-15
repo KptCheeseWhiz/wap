@@ -14,13 +14,14 @@ import {
 import { Response, Request } from "express";
 
 import { DownloadFileDto } from "./dto/downloadFile.dto";
-import { ListFilesDto } from "./dto/listFiles.dto";
-import { TorrentService } from "./torrent.service";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
+import { ListFilesDto } from "./dto/listFiles.dto";
+import { WaitDoneDto } from "./dto/waitDone";
+import { TorrentService } from "./torrent.service";
 
 import { MagnetSignGuard } from "@/guards/magnetSign.guard";
-import { CacheGuard } from "@/guards/cache.guard";
 import { parseRange } from "@/common/utils.helper";
+import { PreloadFileDto } from "./dto/preloadFile.dto";
 
 @Controller("/api/torrent")
 export class TorrentController {
@@ -31,7 +32,7 @@ export class TorrentController {
   @Header("accept-ranges", "bytes")
   @Header("content-type", "application/octet-stream")
   @UseGuards(MagnetSignGuard)
-  async downloadFile(
+  async download(
     @Headers("range") range: string,
     @Query() downloadFileDto: Omit<DownloadFileDto, "name"> & { sig: string },
     @Param("name") name: string,
@@ -75,15 +76,15 @@ export class TorrentController {
 
   @Get("files")
   @Header("content-type", "application/json")
-  @UseGuards(CacheGuard, MagnetSignGuard)
-  async listFiles(@Query() listFilesDto: ListFilesDto & { sig: string }) {
+  @UseGuards(MagnetSignGuard)
+  async files(@Query() listFilesDto: ListFilesDto & { sig: string }) {
     return await this.torrentService.listFiles(listFilesDto);
   }
 
   @Get("playlist")
   @Header("content-type", "audio/x-mpegurl")
   @UseGuards(MagnetSignGuard)
-  async downloadPlaylist(
+  async playlist(
     @Query() downloadPlayListDto: DownloadPlaylistDto & { sig: string },
     @Req() req: Request,
     @Res() res: Response,
@@ -98,6 +99,17 @@ export class TorrentController {
 
     res.setHeader("content-disposition", `inline; filename="${filename}"`);
     res.send(content);
+  }
+
+  @Get("preload")
+  @Header("content-length", "100")
+  @UseGuards(MagnetSignGuard)
+  async preload(
+    @Query() preloadFileDto: PreloadFileDto & { sig: string },
+    @Res() res: Response,
+  ) {
+    const stream = await this.torrentService.preloadFile(preloadFileDto);
+    stream.pipe(res).once("close", () => stream.destroy());
   }
 
   @Get("status")
@@ -118,5 +130,11 @@ export class TorrentController {
       end: 1,
     });
     stream.once("data", () => res.status(204).send(true));
+  }
+
+  @Get("done")
+  @UseGuards(MagnetSignGuard)
+  async done(@Query() waitDoneDto: WaitDoneDto & { sig: string }) {
+    await this.torrentService.waitDone(waitDoneDto);
   }
 }

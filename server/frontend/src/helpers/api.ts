@@ -42,8 +42,9 @@ export const search_columns = async (params: {
 export const torrent_files = async (params: {
   magnet: string;
   sig: string;
-}): Promise<{ name: string; path: string; size: number }[]> =>
-  await fetch(toURL(window.location.origin + "/api/torrent/files", params));
+}): Promise<
+  { name: string; path: string; length: number; progress: number }[]
+> => await fetch(toURL(window.location.origin + "/api/torrent/files", params));
 
 export const torrent_status = async (): Promise<any> =>
   await fetch("/api/torrent/status");

@@ -10,9 +10,11 @@ import parseTorrent, { Instance } from "parse-torrent";
 import { DownloadFileDto } from "./dto/downloadFile.dto";
 import { DownloadPlaylistDto } from "./dto/downloadPlaylist.dto";
 import { ListFilesDto } from "./dto/listFiles.dto";
+import { PreloadFileDto } from "./dto/preloadFile.dto";
+import { WaitDoneDto } from "./dto/waitDone";
 
 import PortHelper from "@/common/port.helper";
-import { LockingReadable } from "@/common/chunked.helper";
+import { LockingReadable } from "@/common/readable";
 import Logger, { Context } from "@/common/logger.helper";
 import {
   chopArray,
@@ -174,9 +176,9 @@ class TorrentWorkerBridge {
     magnetUri,
   }: {
     magnetUri: MagnetUri;
-  }): Promise<{ name: string; path: string; size: number }[]> {
+  }): Promise<{ name: string; path: string; length: number; progress: number; }[]> {
     return await this._mainPort.send<
-      { name: string; path: string; size: number }[]
+      { name: string; path: string; length: number; progress: number }[]
     >("files", {
       magnetUri,
     });
@@ -184,6 +186,51 @@ class TorrentWorkerBridge {
 
   async load(): Promise<number> {
     return await this._mainPort.send<number>("load");
+  }
+
+  async preload({
+    magnetUri,
+    name,
+    path,
+  }: {
+    magnetUri: MagnetUri;
+    name: string;
+    path: string;
+  }): Promise<Readable> {
+    const { port } = await this._mainPort.send<{
+      port: MessagePort;
+      length: number;
+    }>("preload", {
+      magnetUri,
+      name,
+      path,
+    });
+
+    if (!this._magnetUris[magnetUri.infoHash])
+      this._magnetUris[magnetUri.infoHash] = {
+        ...magnetUri,
+      };
+
+    if (!port)
+      return new Readable({
+        read() {
+          this.push(Buffer.from(`\x00`.repeat(100)));
+          this.push(null);
+        },
+      });
+
+    const dlport = new PortHelper(port);
+
+    let wrote = 0;
+    const stream = new LockingReadable();
+    dlport.recv("progress", async ({ progress }: { progress: Uint8Array }) => {
+      if (stream.destroyed) return true;
+      await stream.set(Buffer.from(progress));
+      if ((wrote += progress.length) >= 100) await stream.end();
+    });
+    stream.on("close", () => dlport.close());
+
+    return stream;
   }
 
   async remove({
@@ -393,14 +440,34 @@ export class TorrentService {
 
   async listFiles({
     magnet,
-  }: ListFilesDto): Promise<{ name: string; path: string; size: number }[]> {
+  }: ListFilesDto): Promise<
+    { name: string; path: string; length: number; progress: number }[]
+  > {
     const magnetUri = parseTorrent(magnet) as MagnetUri;
     if (!magnetUri || !magnetUri.infoHash)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
     return (await this.findBest(magnetUri)).files({ magnetUri });
   }
 
+  async preloadFile({ magnet, name, path }: PreloadFileDto) {
+    const magnetUri = parseTorrent(magnet) as MagnetUri;
+    if (!magnetUri || !magnetUri.infoHash)
+      throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
+    return (await this.findBest(magnetUri)).preload({ magnetUri, name, path });
+  }
+
   async status() {
     return await Promise.all(this._workers.map((w) => w.status()));
+  }
+
+  async waitDone({ magnet, name, path }: WaitDoneDto) {
+    const magnetUri = parseTorrent(magnet) as MagnetUri;
+    if (!magnetUri || !magnetUri.infoHash)
+      throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
+    return (await this.findBest(magnetUri)).done({
+      magnetUri,
+      name,
+      path,
+    });
   }
 }

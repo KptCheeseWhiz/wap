@@ -17,7 +17,8 @@ import {
   Button,
 } from "@material-ui/core";
 
-import LoadingButton from "components/DownloadingButton";
+import DownloadingButton from "components/DownloadingButton";
+import PreloadingButton from "components/PreloadingButton";
 
 import { context } from "helpers/reducer";
 import { torrent_files } from "helpers/api";
@@ -42,12 +43,12 @@ function TorrentRow({
   };
   columns: { name: string; value: string; sortable: boolean }[];
 }) {
-  const { state, dispatch } = useContext(context);
+  const { dispatch } = useContext(context);
   const { enqueueSnackbar } = useSnackbar();
 
   const [open, setOpen] = useState<boolean>(false);
   const [files, setFiles] = useState<
-    { name: string; path: string; size: number }[] | null
+    { name: string; path: string; length: number; progress: number }[] | null
   >(null);
 
   useEffect(() => {
@@ -76,6 +77,27 @@ function TorrentRow({
   }) => (event: React.MouseEvent<HTMLButtonElement>) => {
     dispatch({ type: "SET_VIDEO", value: { ...video, open: true } });
     event.preventDefault();
+  };
+
+  const onEnded = ({
+    name,
+    path,
+    length,
+  }: {
+    name: string;
+    path: string;
+    length: number;
+    progress: number;
+  }) => () => {
+    if (!files) return;
+    const nfiles = [...files];
+    const file = nfiles.find(
+      (file) =>
+        file.name === name && file.path === path && file.length === length,
+    );
+    if (file) file.progress = 1;
+    enqueueSnackbar(`${name} has finished preloading!`, { variant: "success" });
+    setFiles(nfiles);
   };
 
   const onClick = (url: string) => (
@@ -132,6 +154,15 @@ function TorrentRow({
                           sig: torrent.sig,
                         },
                       );
+                      const filepl = toURL(
+                        window.location.origin + "/api/torrent/preload",
+                        {
+                          magnet: torrent.magnet,
+                          name: file.name,
+                          path: file.path,
+                          sig: torrent.sig,
+                        },
+                      );
                       const filestream = toURL(
                         window.location.origin + "/player",
                         {
@@ -148,10 +179,16 @@ function TorrentRow({
                             {(file.path ? file.path + "/" : "") + file.name}
                           </TableCell>
                           <TableCell>
-                            {(file.size / 1048576).toFixed() + " MiB"}
+                            {(file.length / 1048576).toFixed() + " MiB"}
                           </TableCell>
                           <TableCell>
-                            <LoadingButton url={filedl} name={file.name} />
+                            <DownloadingButton name={file.name} href={filedl} />
+                            {file.progress !== 1 && (
+                              <PreloadingButton
+                                href={filepl}
+                                onEnded={onEnded(file)}
+                              />
+                            )}
                             <Button
                               aria-label="Stream"
                               color="secondary"

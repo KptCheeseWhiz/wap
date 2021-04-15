@@ -37,6 +37,7 @@ function PlayerModal() {
         <div
           tabIndex={-1}
           style={{
+            outline: "none",
             overflow: "hidden",
             width: "100vw",
             height: "100vh",

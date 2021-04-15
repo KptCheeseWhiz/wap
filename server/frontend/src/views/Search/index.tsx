@@ -111,7 +111,7 @@ function Search() {
       }}
     >
       <Seasonal />
-      <LoadingBar />
+      <LoadingBar progress={state.progress} />
       <Favorites />
       <Paper>
         <span

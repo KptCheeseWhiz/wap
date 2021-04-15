@@ -14,7 +14,6 @@ function StatePlayer() {
     state.video.sig === undefined
   )
     return <span />;
-    
   return (
     <Player
       video={{

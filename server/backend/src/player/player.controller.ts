@@ -16,6 +16,7 @@ import { ListSubtitlesDto } from "./dto/listSubtitles.dto";
 import { TorrentService } from "@/torrent/torrent.service";
 import { DownloadFileDto } from "@/torrent/dto/downloadFile.dto";
 import { MagnetSignGuard } from "@/guards/magnetSign.guard";
+import { CacheGuard } from "@/guards/cache.guard";
 import { parseRange } from "@/common/utils.helper";
 
 @UseGuards(MagnetSignGuard)
@@ -57,6 +58,7 @@ export class PlayerController {
   }
 
   @Get("subtitles")
+  @UseGuards(CacheGuard)
   async listSubtitles(
     @Query() listSubtitlesDto: ListSubtitlesDto & { sig: string },
   ) {
@@ -65,6 +67,7 @@ export class PlayerController {
 
   @Get("subtitle")
   @Header("content-type", "text/vtt")
+  @UseGuards(CacheGuard)
   async getSubtitles(
     @Query()
     getSubtitlesDto: GetSubtitlesDto & { sig: string },
