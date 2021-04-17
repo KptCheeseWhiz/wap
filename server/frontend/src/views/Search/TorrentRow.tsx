@@ -183,12 +183,6 @@ function TorrentRow({
                           </TableCell>
                           <TableCell>
                             <DownloadingButton name={file.name} href={filedl} />
-                            {file.progress !== 1 && (
-                              <PreloadingButton
-                                href={filepl}
-                                onEnded={onEnded(file)}
-                              />
-                            )}
                             <Button
                               aria-label="Stream"
                               color="secondary"
@@ -202,6 +196,12 @@ function TorrentRow({
                             >
                               {"Stream"}
                             </Button>
+                            {file.progress !== 1 && (
+                              <PreloadingButton
+                                href={filepl}
+                                onEnded={onEnded(file)}
+                              />
+                            )}
                           </TableCell>
                         </TableRow>
                       );

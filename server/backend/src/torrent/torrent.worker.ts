@@ -483,17 +483,17 @@ class TorrentWorker {
             }),
           )
           .on("data", function (this: Readable) {
-            const tosend = Math.floor(file.progress * 100 - progress);
-            if (tosend === 0) return;
+            const delta_progress = Math.floor(file.progress * 100) - progress;
+            if (delta_progress === 0) return;
 
             this.pause();
             uploadPort
               .send("progress", {
-                progress: Buffer.from(`\x00`.repeat(tosend)),
+                progress: Buffer.from(`\x00`.repeat(delta_progress)),
               })
               .then((destroyed: boolean) => {
                 if (destroyed) return this.destroy();
-                progress += tosend;
+                progress += delta_progress;
                 setTimeout(() => this.resume(), TORRENT_THROTTLE);
               })
               .catch((err: Error) => {
@@ -608,7 +608,6 @@ class TorrentWorker {
 
         const magnetUri = parseTorrent(magnet);
         if (!magnetUri.infoHash) return;
-        (magnetUri as any).so = "-1";
 
         if (createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) {
           Logger(this._id).log(`${infoHash} expired`);
@@ -631,7 +630,7 @@ class TorrentWorker {
 
         const torrent = await new Promise<WebTorrent.Torrent>((resolve) =>
           this._dlclient.add(
-            parseTorrent.toMagnetURI(magnetUri),
+            parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
             {
               path,
             },
