@@ -69,7 +69,7 @@ function TorrentRow({
     event.stopPropagation();
   };
 
-  const onStreamClick = (video: {
+  const onWatchClick = (video: {
     magnet: string;
     name: string;
     path: string;
@@ -100,7 +100,7 @@ function TorrentRow({
     setFiles(nfiles);
   };
 
-  const onClick = (url: string) => (
+  const onOpen = (url: string) => (
     event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     window.open(url, "_blank", "noopener noreferrer");
@@ -143,76 +143,70 @@ function TorrentRow({
                 )}
                 {files && (
                   <>
-                    {files.map((file, i) => {
-                      const filedl = toURL(
-                        window.location.origin +
-                          "/api/torrent/download/" +
-                          encodeURIComponent(file.name),
-                        {
-                          magnet: torrent.magnet,
-                          path: file.path,
-                          sig: torrent.sig,
-                        },
-                      );
-                      const filepl = toURL(
-                        window.location.origin + "/api/torrent/preload",
-                        {
-                          magnet: torrent.magnet,
-                          name: file.name,
-                          path: file.path,
-                          sig: torrent.sig,
-                        },
-                      );
-                      const filestream = toURL(
-                        window.location.origin + "/player",
-                        {
-                          magnet: torrent.magnet,
-                          name: file.name,
-                          path: file.path,
-                          sig: torrent.sig,
-                        },
-                      );
-
-                      return (
-                        <TableRow key={"file" + i}>
-                          <TableCell>
-                            {(file.path ? file.path + "/" : "") + file.name}
-                          </TableCell>
-                          <TableCell>
-                            {(file.length / 1048576).toFixed() + " MiB"}
-                          </TableCell>
-                          <TableCell>
-                            <DownloadingButton name={file.name} href={filedl} />
-                            <Button
-                              aria-label="Stream"
-                              color="secondary"
-                              href={filestream}
-                              onClick={onStreamClick({
+                    {files.map((file, i) => (
+                      <TableRow key={"file" + i}>
+                        <TableCell>
+                          {(file.path ? file.path + "/" : "") + file.name}
+                        </TableCell>
+                        <TableCell>
+                          {(file.length / 1048576).toFixed() + " MiB"}
+                        </TableCell>
+                        <TableCell>
+                          <DownloadingButton
+                            name={file.name}
+                            href={toURL(
+                              window.location.origin +
+                                "/api/torrent/download/" +
+                                encodeURIComponent(file.name),
+                              {
                                 magnet: torrent.magnet,
-                                name: file.name,
                                 path: file.path,
                                 sig: torrent.sig,
-                              })}
-                            >
-                              {"Stream"}
-                            </Button>
-                            {file.progress !== 1 && (
-                              <PreloadingButton
-                                href={filepl}
-                                onEnded={onEnded(file)}
-                              />
+                              },
                             )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                          />
+                          <Button
+                            aria-label="Watch"
+                            color="secondary"
+                            href={toURL(window.location.origin + "/player", {
+                              magnet: torrent.magnet,
+                              name: file.name,
+                              path: file.path,
+                              sig: torrent.sig,
+                            })}
+                            onClick={onWatchClick({
+                              magnet: torrent.magnet,
+                              name: file.name,
+                              path: file.path,
+                              sig: torrent.sig,
+                            })}
+                          >
+                            {"Watch"}
+                          </Button>
+                          {file.progress !== 1 && (
+                            <PreloadingButton
+                              href={toURL(
+                                window.location.origin + "/api/torrent/preload",
+                                {
+                                  magnet: torrent.magnet,
+                                  name: file.name,
+                                  path: file.path,
+                                  sig: torrent.sig,
+                                },
+                              )}
+                              onEnded={onEnded(file)}
+                            />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                     <TableRow>
                       <TableCell colSpan={10}>
                         <Button
                           aria-label="Torrent"
                           color="secondary"
                           href={torrent.download}
-                          onClick={onClick(torrent.download)}
+                          onClick={onOpen(torrent.download)}
                         >
                           Torrent
                         </Button>
@@ -220,7 +214,7 @@ function TorrentRow({
                           aria-label="Magnet"
                           color="secondary"
                           href={torrent.magnet}
-                          onClick={onClick(torrent.magnet)}
+                          onClick={onOpen(torrent.magnet)}
                         >
                           Magnet
                         </Button>

@@ -32,32 +32,30 @@ function PlayerModal() {
   }, [state.video.open]);
 
   return (
-    <>
-      <Modal open={state.video.open} onClose={handleClose}>
-        <div
-          tabIndex={-1}
+    <Modal open={state.video.open} onClose={handleClose}>
+      <div
+        tabIndex={-1}
+        style={{
+          outline: "none",
+          overflow: "hidden",
+          width: "100vw",
+          height: "100vh",
+        }}
+      >
+        <StatePlayer />
+        <IconButton
+          aria-label="close"
           style={{
-            outline: "none",
-            overflow: "hidden",
-            width: "100vw",
-            height: "100vh",
+            position: "fixed",
+            top: 0,
+            left: 0,
           }}
+          onClick={handleClose}
         >
-          <StatePlayer />
-          <IconButton
-            aria-label="close"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-            }}
-            onClick={handleClose}
-          >
-            <CloseIcon />
-          </IconButton>
-        </div>
-      </Modal>
-    </>
+          <CloseIcon />
+        </IconButton>
+      </div>
+    </Modal>
   );
 }
 

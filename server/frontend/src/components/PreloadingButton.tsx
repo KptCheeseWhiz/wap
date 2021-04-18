@@ -94,7 +94,7 @@ function PreloadingButton(
 
   return (
     <Button
-      aria-label={eventemitter !== null ? "Cancel" : "Download"}
+      aria-label={eventemitter !== null ? "Cancel" : "Preload"}
       color="secondary"
       onClick={onClick}
       {...props}

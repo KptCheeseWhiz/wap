@@ -40,9 +40,9 @@ import bootstrap from "./app/app";
 
   await electron.app.whenReady();
 
-  const PORT = await bootstrap("127.0.0.1", 0)
-    .then((app: any) => app.getUrl())
-    .then((url: string) => Number(url.toString().split(":").pop()));
+  const SERVER_URL = await bootstrap("127.0.0.1", 0).then((app: any) =>
+    app.getUrl()
+  );
 
   const createWindow = () => {
     const mainWindow = new electron.BrowserWindow({
@@ -61,10 +61,10 @@ import bootstrap from "./app/app";
     mainWindow.setMenuBarVisibility(false);
 
     mainWindow.webContents.on("did-fail-load", () =>
-      mainWindow.loadURL(`http://localhost:${PORT}/search`)
+      mainWindow.loadURL(`${SERVER_URL}/search`)
     );
 
-    mainWindow.loadURL(`http://localhost:${PORT}/search`);
+    mainWindow.loadURL(`${SERVER_URL}/search`);
 
     mainWindow.on("ready-to-show", () => mainWindow.show());
   };

@@ -45,8 +45,7 @@ export type IAction =
         path?: string;
         sig?: string;
       };
-    }
-  | { type: "SET_VIDEO_OPEN"; value: boolean };
+    };
 
 export interface IContextProps {
   state: IState;
@@ -97,12 +96,6 @@ export function reducer(state: IState, action: IAction): IState {
           name: action.value.name,
           path: action.value.path,
           sig: action.value.sig,
-        },
-      });
-    case "SET_VIDEO_OPEN":
-      return _merge({}, state, {
-        video: {
-          open: action.value,
         },
       });
     default:
