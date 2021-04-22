@@ -33,9 +33,9 @@ function Player({
     if (video)
       api
         .torrent_verify(video)
-        .then(() => setOk(true))
         .then(() => api.player_subtitles(video))
         .then(setSubtitles)
+        .then(() => setOk(true))
         .catch((e: Error) => {
           if (e.message) enqueueSnackbar(e.message, { variant: "error" });
           setOk(false);
