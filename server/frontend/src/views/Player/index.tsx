@@ -26,7 +26,7 @@ function Player({
 
   const [isOk, setOk] = useState<boolean | null>(null);
   const [subtitles, setSubtitles] = useState<
-    { language: string; title: string }[]
+    { label: string; srclang: string }[]
   >([]);
 
   useEffect(() => {
@@ -83,14 +83,14 @@ function Player({
               src: toURL(window.location.origin + "/api/player/play", video),
               type,
             })),
-            tracks: subtitles.map(({ language, title }, i) => ({
+            tracks: subtitles.map(({ label, srclang }, i) => ({
               src: toURL(window.location.origin + "/api/player/subtitle", {
                 ...video,
                 index: i,
               }),
               kind: "captions",
-              label: title,
-              srclang: language,
+              label,
+              srclang,
             })),
           }}
           options={{

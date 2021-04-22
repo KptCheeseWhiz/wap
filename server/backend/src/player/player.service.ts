@@ -8,8 +8,8 @@ import parseTorrent from "parse-torrent";
 import ffmpeg_static from "ffmpeg-static";
 import { path as ffprobe_static } from "ffprobe-static";
 
+import { GetSubtitleDto } from "./dto/getSubtitle.dto";
 import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
-import { ListSubtitlesDto } from "./dto/listSubtitles.dto";
 
 import { TorrentService } from "@/torrent/torrent.service";
 import { fileExists } from "@/common/utils.helper";
@@ -24,11 +24,13 @@ export class PlayerService {
     );
   }
 
-  async listSubtitles({
+  async getSubtitles({
     magnet,
     name,
     path,
-  }: ListSubtitlesDto): Promise<{ title: string; language: string }[]> {
+  }: GetSubtitlesDto): Promise<
+    { label: string; srclang: string; index: number }[]
+  > {
     const magnetUri = parseTorrent(magnet);
     if (!magnetUri)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
@@ -46,7 +48,7 @@ export class PlayerService {
     if (await fileExists(fullpath + "__subtitles.json"))
       return JSON.parse(
         (await fs.promises.readFile(fullpath + "__subtitles.json")).toString(),
-      ).map(({ title, language }) => ({ title, language }));
+      );
 
     const tracks = (
       await new Promise<any[]>((resolve, reject) => {
@@ -70,14 +72,10 @@ export class PlayerService {
           .once("close", () => resolve(JSON.parse(out).streams));
       })
     )
-      .filter(
-        (stream) =>
-          (stream.codec_type as typeof stream.codec_name & "subtitle") ===
-          "subtitle",
-      )
+      .filter((stream) => stream.codec_type === "subtitle")
       .map((sub) => ({
-        title: sub.tags.title,
-        language: sub.tags.language,
+        label: sub.tags.title,
+        srclang: sub.tags.language,
         index: sub.index,
       }));
 
@@ -85,7 +83,7 @@ export class PlayerService {
       fullpath + "__subtitles.json",
       JSON.stringify(tracks),
     );
-    return tracks.map(({ title, language }) => ({ title, language }));
+    return tracks;
   }
 
   async getSubtitle({
@@ -93,7 +91,7 @@ export class PlayerService {
     name,
     path,
     index,
-  }: GetSubtitlesDto): Promise<Readable> {
+  }: GetSubtitleDto): Promise<Readable> {
     const magnetUri = parseTorrent(magnet);
     if (!magnetUri)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
@@ -110,8 +108,8 @@ export class PlayerService {
       return fs.createReadStream(fullpath + "__subtitle_" + +index + ".vtt");
 
     const subs: {
-      title: string;
-      language: string;
+      label: string;
+      srclang: string;
       index: number;
     }[] = JSON.parse(
       (await fs.promises.readFile(fullpath + "__subtitles.json")).toString(),

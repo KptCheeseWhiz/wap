@@ -1,9 +1,4 @@
-import {
-  IsMagnetURI,
-  IsNotEmpty,
-  IsString,
-  IsNumberString,
-} from "class-validator";
+import { IsMagnetURI, IsNotEmpty, IsString } from "class-validator";
 
 export class GetSubtitlesDto {
   @IsMagnetURI()
@@ -16,7 +11,4 @@ export class GetSubtitlesDto {
 
   @IsString()
   readonly path: string;
-
-  @IsNumberString()
-  readonly index: number;
 }

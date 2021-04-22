@@ -10,8 +10,8 @@ import {
 import { Response } from "express";
 
 import { PlayerService } from "./player.service";
+import { GetSubtitleDto } from "./dto/getSubtitle.dto";
 import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
-import { ListSubtitlesDto } from "./dto/listSubtitles.dto";
 
 import { TorrentService } from "@/torrent/torrent.service";
 import { DownloadFileDto } from "@/torrent/dto/downloadFile.dto";
@@ -59,20 +59,20 @@ export class PlayerController {
 
   @Get("subtitles")
   @UseGuards(CacheGuard)
-  async listSubtitles(
-    @Query() listSubtitlesDto: ListSubtitlesDto & { sig: string },
+  async getSubtitles(
+    @Query() getSubtitlesDto: GetSubtitlesDto & { sig: string },
   ) {
-    return await this.playerService.listSubtitles(listSubtitlesDto);
+    return await this.playerService.getSubtitles(getSubtitlesDto);
   }
 
   @Get("subtitle")
   @Header("content-type", "text/vtt")
   @UseGuards(CacheGuard)
-  async getSubtitles(
+  async getSubtitle(
     @Query()
-    getSubtitlesDto: GetSubtitlesDto & { sig: string },
+    getSubtitleDto: GetSubtitleDto & { sig: string },
     @Res() res: Response,
   ) {
-    (await this.playerService.getSubtitle(getSubtitlesDto)).pipe(res);
+    (await this.playerService.getSubtitle(getSubtitleDto)).pipe(res);
   }
 }
