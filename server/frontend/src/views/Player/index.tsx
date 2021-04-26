@@ -83,19 +83,29 @@ function Player({
               src: toURL(window.location.origin + "/api/player/play", video),
               type,
             })),
-            tracks: subtitles.map(({ label, srclang, index }) => ({
+            tracks: subtitles.map(({ label, srclang: srcLang, index }) => ({
               src: toURL(window.location.origin + "/api/player/subtitle", {
                 ...video,
                 index,
               }),
-              kind: "captions",
+              kind: "subtitles",
               label,
-              srclang,
+              srcLang,
             })),
           }}
           options={{
-            captions: { active: true, update: true },
-            fullscreen: { enabled: true },
+            captions: { active: true, update: true, language: "auto" },
+            controls: [
+              "play-large",
+              "play",
+              "progress",
+              "current-time",
+              "mute",
+              "volume",
+              "captions",
+              "settings",
+              "fullscreen",
+            ],
           }}
         />
       ) : (

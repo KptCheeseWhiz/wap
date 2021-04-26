@@ -1,22 +1,20 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import { useSnackbar } from "notistack";
-import { Card, CardMedia, Grid, Paper, Typography } from "@material-ui/core";
+import { Card, CardMedia, Grid, Typography } from "@material-ui/core";
 import MaterialCarousel from "react-material-ui-carousel";
 
 import Options from "./Options";
 
 import * as jikan from "helpers/jikan";
 import { context } from "helpers/reducer";
-import Centered from "components/Centered";
-import Spinner from "components/Spinner";
 
 function Carousel() {
   const { enqueueSnackbar } = useSnackbar();
   const { state, dispatch } = useContext(context);
 
   const [groupBy, setGroupBy] = useState<number>(12);
-  const [animes, setAnimes] = useState<jikan.IAnime[] | null>(null);
+  const [animes, setAnimes] = useState<jikan.IAnime[]>([]);
 
   useEffect(() => {
     function handleResize() {
@@ -33,12 +31,10 @@ function Carousel() {
     try {
       switch (state.carousel.type) {
         case "seasonal":
-          setAnimes(null);
           jikan.schedule().then(setAnimes);
           break;
         case "mal_watching":
           if (state.carousel.usernames["mal"]) {
-            setAnimes(null);
             jikan
               .watching({ username: state.carousel.usernames["mal"] })
               .then(setAnimes)
@@ -61,16 +57,10 @@ function Carousel() {
   const onAnimeClick = (title: string) => () =>
     dispatch({ type: "SET_QUERY", value: title });
 
-  if (animes === null)
-    return (
-      <Centered component={"span"} style={{ height: 200 }} direction={"row"}>
-        <Spinner size={100} />
-      </Centered>
-    );
   return (
     <>
       <MaterialCarousel indicators={false} animation={"slide"} autoPlay={false}>
-        {animes
+        {(animes || [])
           .reduce(
             (a, b) => {
               if (a[a.length - 1].length >= groupBy) a.push([]);
