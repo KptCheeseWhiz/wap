@@ -50,7 +50,7 @@ export class PlayerService {
         (await fs.promises.readFile(fullpath + "__subtitles.json")).toString(),
       );
 
-    const tracks = (
+    const tracks: { label: string; srclang: string; index: number }[] = (
       await new Promise<any[]>((resolve, reject) => {
         const spawn = cp_spawn(
           ffprobe_static,
@@ -83,7 +83,63 @@ export class PlayerService {
       fullpath + "__subtitles.json",
       JSON.stringify(tracks),
     );
-    return tracks;
+
+    return new Promise<{ label: string; srclang: string; index: number }[]>(
+      (resolve, reject) => {
+        const tag = Date.now();
+
+        const spawn = cp_spawn(
+          ffmpeg_static,
+          [
+            "-y",
+            "-i",
+            "-",
+            ...tracks.reduce(
+              (a, { index }, i) => [
+                ...a,
+                `-map`,
+                `0:${index}`,
+                `-c:${index}`,
+                `webvtt`,
+                `-f`,
+                `webvtt`,
+                fullpath + "__subtitle_" + i + ".vtt_" + tag,
+              ],
+              [],
+            ),
+          ],
+          {
+            stdio: ["pipe", "ignore", "ignore"],
+          },
+        );
+
+        this.torrentService
+          .downloadFile({ magnet, name, path })
+          .then((stream) => stream.pipe(spawn.stdin));
+
+        spawn.stdin.once("error", () => {});
+        spawn.once("exit", async (code) => {
+          if (code === 0)
+            await Promise.all(
+              tracks.map((_, i) =>
+                fs.promises.copyFile(
+                  fullpath + "__subtitle_" + i + ".vtt_" + tag,
+                  fullpath + "__subtitle_" + i + ".vtt",
+                ),
+              ),
+            );
+          await Promise.all(
+            tracks.map((_, i) =>
+              fs.promises
+                .rm(fullpath + "__subtitle_" + i + ".vtt_" + tag)
+                .catch(() => {}),
+            ),
+          );
+          if (code !== 0) return reject(new Error(`Exit code ${code}`));
+          return resolve(tracks);
+        });
+      },
+    );
   }
 
   async getSubtitle({
