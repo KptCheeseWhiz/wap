@@ -176,9 +176,23 @@ class TorrentWorkerBridge {
     magnetUri,
   }: {
     magnetUri: MagnetUri;
-  }): Promise<{ name: string; path: string; length: number; progress: number; }[]> {
+  }): Promise<
+    {
+      name: string;
+      path: string;
+      length: number;
+      mime: string;
+      progress: number;
+    }[]
+  > {
     return await this._mainPort.send<
-      { name: string; path: string; length: number; progress: number }[]
+      {
+        name: string;
+        path: string;
+        length: number;
+        mime: string;
+        progress: number;
+      }[]
     >("files", {
       magnetUri,
     });
@@ -441,7 +455,13 @@ export class TorrentService {
   async listFiles({
     magnet,
   }: ListFilesDto): Promise<
-    { name: string; path: string; length: number; progress: number }[]
+    {
+      name: string;
+      path: string;
+      length: number;
+      mime: string;
+      progress: number;
+    }[]
   > {
     const magnetUri = parseTorrent(magnet) as MagnetUri;
     if (!magnetUri || !magnetUri.infoHash)

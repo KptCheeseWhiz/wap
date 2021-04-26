@@ -9,6 +9,7 @@ import { Readable } from "stream";
 import { join as path_join } from "path";
 import * as fs from "fs";
 
+import mime from "mime-types";
 import parseTorrent, { Instance } from "parse-torrent";
 import WebTorrent from "webtorrent";
 
@@ -316,7 +317,13 @@ class TorrentWorker {
   }: {
     magnetUri: MagnetUri;
   }): Promise<
-    { name: string; path: string; length: number; progress: number }[]
+    {
+      name: string;
+      path: string;
+      length: number;
+      mime: string;
+      progress: number;
+    }[]
   > {
     try {
       this._pending++;
@@ -333,6 +340,7 @@ class TorrentWorker {
           name,
           path: path.substr(0, path.length - name.length),
           length,
+          mime: mime.lookup(name) || "application/octet-stream",
           progress,
         }));
         Logger(this._id).log(
@@ -343,7 +351,13 @@ class TorrentWorker {
       }
 
       return await new Promise<
-        { name: string; path: string; length: number; progress: number }[]
+        {
+          name: string;
+          path: string;
+          length: number;
+          mime: string;
+          progress: number;
+        }[]
       >((resolve, reject) => {
         const timeout = setTimeout(() => {
           if (this._flclient.get(magnetUri.infoHash))
@@ -366,6 +380,7 @@ class TorrentWorker {
                 name,
                 path: path.substr(0, path.length - name.length),
                 length,
+                mime: mime.lookup(name) || "application/octet-stream",
                 progress,
               }),
             );

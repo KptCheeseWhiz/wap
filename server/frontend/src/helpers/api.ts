@@ -43,7 +43,13 @@ export const torrent_files = async (params: {
   magnet: string;
   sig: string;
 }): Promise<
-  { name: string; path: string; length: number; progress: number }[]
+  {
+    name: string;
+    path: string;
+    length: number;
+    mime: string;
+    progress: number;
+  }[]
 > => await fetch(toURL(window.location.origin + "/api/torrent/files", params));
 
 export const torrent_status = async (): Promise<any> =>

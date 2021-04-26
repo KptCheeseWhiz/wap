@@ -48,7 +48,14 @@ function TorrentRow({
 
   const [open, setOpen] = useState<boolean>(false);
   const [files, setFiles] = useState<
-    { name: string; path: string; length: number; progress: number }[] | null
+    | {
+        name: string;
+        path: string;
+        length: number;
+        mime: string;
+        progress: number;
+      }[]
+    | null
   >(null);
 
   useEffect(() => {
@@ -82,7 +89,6 @@ function TorrentRow({
   const onEnded = ({
     name,
     path,
-    length,
   }: {
     name: string;
     path: string;
@@ -92,8 +98,7 @@ function TorrentRow({
     if (!files) return;
     const nfiles = [...files];
     const file = nfiles.find(
-      (file) =>
-        file.name === name && file.path === path && file.length === length,
+      (file) => file.name === name && file.path === path,
     );
     if (file) file.progress = 1;
     enqueueSnackbar(`${name} has finished preloading!`, { variant: "success" });
@@ -165,37 +170,45 @@ function TorrentRow({
                               },
                             )}
                           />
-                          <Button
-                            aria-label="Watch"
-                            color="secondary"
-                            href={toURL(window.location.origin + "/player", {
-                              magnet: torrent.magnet,
-                              name: file.name,
-                              path: file.path,
-                              sig: torrent.sig,
-                            })}
-                            onClick={onWatchClick({
-                              magnet: torrent.magnet,
-                              name: file.name,
-                              path: file.path,
-                              sig: torrent.sig,
-                            })}
-                          >
-                            {"Watch"}
-                          </Button>
-                          {file.progress !== 1 && (
-                            <PreloadingButton
-                              href={toURL(
-                                window.location.origin + "/api/torrent/preload",
-                                {
+                          {file.mime.indexOf("video/") === 0 && (
+                            <>
+                              <Button
+                                aria-label="Watch"
+                                color="secondary"
+                                href={toURL(
+                                  window.location.origin + "/player",
+                                  {
+                                    magnet: torrent.magnet,
+                                    name: file.name,
+                                    path: file.path,
+                                    sig: torrent.sig,
+                                  },
+                                )}
+                                onClick={onWatchClick({
                                   magnet: torrent.magnet,
                                   name: file.name,
                                   path: file.path,
                                   sig: torrent.sig,
-                                },
+                                })}
+                              >
+                                {"Watch"}
+                              </Button>
+                              {file.progress !== 1 && (
+                                <PreloadingButton
+                                  href={toURL(
+                                    window.location.origin +
+                                      "/api/torrent/preload",
+                                    {
+                                      magnet: torrent.magnet,
+                                      name: file.name,
+                                      path: file.path,
+                                      sig: torrent.sig,
+                                    },
+                                  )}
+                                  onEnded={onEnded(file)}
+                                />
                               )}
-                              onEnded={onEnded(file)}
-                            />
+                            </>
                           )}
                         </TableCell>
                       </TableRow>

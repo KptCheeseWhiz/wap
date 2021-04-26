@@ -37,7 +37,7 @@
     "helmet": "^4.4.1",
     "http-proxy-middleware": "^1.1.1",
     "jsdom": "^16.5.1",
-    "mime-types": "^2.1.29",
+    "mime-types": "^2.1.30",
     "node-fetch": "^2.6.1",
     "parse-torrent": "^9.1.3",
     "reflect-metadata": "^0.1.13",
