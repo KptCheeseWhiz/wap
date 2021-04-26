@@ -2,38 +2,22 @@ import React from "react";
 
 import { CircularProgress } from "@material-ui/core";
 
-import Pad from "components/Pad";
+import Centered from "components/Centered";
 
 function Spinner({ size, progress }: { size: number; progress?: number }) {
   return (
-    <span
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        height: "100%",
-      }}
+    <Centered
+      component={"span"}
+      style={{ width: "100%", height: "100%" }}
+      direction={"row"}
     >
-      <Pad />
-      <span
-        style={{
-          display: "flex",
-          flexDirection: "row",
-        }}
-      >
-        <Pad />
-        <CircularProgress
-          variant={
-            progress && progress !== -1 ? "determinate" : "indeterminate"
-          }
-          value={progress}
-          size={size}
-          color="secondary"
-        />
-        <Pad />
-      </span>
-      <Pad />
-    </span>
+      <CircularProgress
+        variant={progress && progress !== -1 ? "determinate" : "indeterminate"}
+        value={progress}
+        size={size}
+        color="secondary"
+      />
+    </Centered>
   );
 }
 

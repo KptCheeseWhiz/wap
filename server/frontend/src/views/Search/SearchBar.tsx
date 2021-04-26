@@ -64,6 +64,7 @@ function SearchBar() {
       onKeyDown={onEnter}
       onChange={onChange(setQuery)}
       disabled={state.progress !== 100}
+      color={"secondary"}
       endAdornment={
         <>
           {query &&

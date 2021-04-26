@@ -21,6 +21,10 @@ export interface IState {
     path?: string;
     sig?: string;
   };
+  carousel: {
+    type: "seasonal" | "mal_watching";
+    usernames: { [key: string]: string };
+  };
 }
 
 export type IActionType =
@@ -28,7 +32,10 @@ export type IActionType =
   | "SET_QUERY"
   | "SET_PAGE"
   | "SET_SORT_AND_ORDER"
-  | "SET_FAVORITES";
+  | "SET_FAVORITES"
+  | "SET_CAROUSEL"
+  | "SET_CAROUSEL_TYPE"
+  | "SET_CAROUSEL_USERNAME";
 
 export type IAction =
   | { type: "SET_PROGRESS"; value: number }
@@ -45,7 +52,16 @@ export type IAction =
         path?: string;
         sig?: string;
       };
-    };
+    }
+  | {
+      type: "SET_CAROUSEL";
+      value: {
+        type: "seasonal" | "mal_watching";
+        usernames: { [key: string]: string };
+      };
+    }
+  | { type: "SET_CAROUSEL_TYPE"; value: "seasonal" | "mal_watching" }
+  | { type: "SET_CAROUSEL_USERNAME"; value: { [key: string]: string } };
 
 export interface IContextProps {
   state: IState;
@@ -65,6 +81,10 @@ export const initialState: IState = {
   },
   video: {
     open: false,
+  },
+  carousel: storage.get("carousel") || {
+    type: "seasonal",
+    usernames: {},
   },
 };
 
@@ -96,6 +116,29 @@ export function reducer(state: IState, action: IAction): IState {
           name: action.value.name,
           path: action.value.path,
           sig: action.value.sig,
+        },
+      });
+    case "SET_CAROUSEL":
+      storage.set("carousel", action.value);
+      return { ...state, carousel: action.value };
+    case "SET_CAROUSEL_TYPE":
+      storage.set(
+        "carousel",
+        _merge({}, state.carousel, { type: action.value }),
+      );
+      return _merge({}, state, {
+        carousel: {
+          type: action.value,
+        },
+      });
+    case "SET_CAROUSEL_USERNAME":
+      storage.set(
+        "carousel",
+        _merge({}, state.carousel, { usernames: action.value }),
+      );
+      return _merge({}, state, {
+        carousel: {
+          usernames: action.value,
         },
       });
     default:

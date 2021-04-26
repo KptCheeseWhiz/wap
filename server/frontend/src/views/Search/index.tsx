@@ -17,7 +17,7 @@ import SearchBar from "views/Search/SearchBar";
 import Pagination from "views/Search/Pagination";
 import TorrentRow from "views/Search/TorrentRow";
 import Favorites from "views/Search/Favorites";
-import Seasonal from "views/Search/Seasonal";
+import Carousel from "views/Search/Carousel";
 import PlayerModal from "views/Search/PlayerModal";
 
 import { context } from "helpers/reducer";
@@ -110,7 +110,7 @@ function Search() {
         flexDirection: "column",
       }}
     >
-      <Seasonal />
+      <Carousel />
       <LoadingBar progress={state.progress} />
       <Favorites />
       <Paper>

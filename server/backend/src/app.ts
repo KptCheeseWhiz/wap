@@ -28,13 +28,13 @@ export default async (host: string, port: number) => {
           imgSrc: [`'self'`, "data:", "https://cdn.myanimelist.net"],
           connectSrc: [
             `'self'`,
-            "https://cdn.plyr.io",
             "https://api.jikan.moe",
-            "https://cdn.myanimelist.net"
+            "https://cdn.myanimelist.net",
+            "https://cdn.plyr.io",
           ],
           workerSrc: [`'self'`, "https:"],
           mediaSrc: [`'self'`, "https://cdn.plyr.io"],
-          frameSrc: [`'self'`, "vlc:"],
+          frameSrc: [`'self'`],
           objectSrc: [`'none'`],
         },
       },
