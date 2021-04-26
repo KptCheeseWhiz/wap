@@ -95,7 +95,7 @@ export class PlayerService {
             "-i",
             "-",
             ...tracks.reduce(
-              (a, { index }, i) => [
+              (a, { index }) => [
                 ...a,
                 `-map`,
                 `0:${index}`,
@@ -103,7 +103,7 @@ export class PlayerService {
                 `webvtt`,
                 `-f`,
                 `webvtt`,
-                fullpath + "__subtitle_" + i + ".vtt_" + tag,
+                fullpath + "__subtitle_" + index + ".vtt_" + tag,
               ],
               [],
             ),
@@ -121,17 +121,17 @@ export class PlayerService {
         spawn.once("exit", async (code) => {
           if (code === 0)
             await Promise.all(
-              tracks.map((_, i) =>
+              tracks.map(({ index }) =>
                 fs.promises.copyFile(
-                  fullpath + "__subtitle_" + i + ".vtt_" + tag,
-                  fullpath + "__subtitle_" + i + ".vtt",
+                  fullpath + "__subtitle_" + index + ".vtt_" + tag,
+                  fullpath + "__subtitle_" + index + ".vtt",
                 ),
               ),
             );
           await Promise.all(
-            tracks.map((_, i) =>
+            tracks.map(({ index }) =>
               fs.promises
-                .rm(fullpath + "__subtitle_" + i + ".vtt_" + tag)
+                .rm(fullpath + "__subtitle_" + index + ".vtt_" + tag)
                 .catch(() => {}),
             ),
           );
@@ -171,7 +171,7 @@ export class PlayerService {
       (await fs.promises.readFile(fullpath + "__subtitles.json")).toString(),
     );
 
-    const sub = subs[+index];
+    const sub = subs.find((sub) => sub.index === +index);
     if (!sub)
       throw new HttpException("Subtitle not found", HttpStatus.NOT_FOUND);
 
@@ -199,7 +199,8 @@ export class PlayerService {
         .downloadFile({ magnet, name, path })
         .then((stream) => stream.pipe(spawn.stdin));
 
-      const tmpfile = fullpath + "__subtitle_" + +index + ".vtt_" + Date.now();
+      const tmpfile =
+        fullpath + "__subtitle_" + sub.index + ".vtt_" + Date.now();
 
       const stream = fs.createWriteStream(tmpfile);
       spawn.stdout.on("data", (buffer: Buffer) => stream.write(buffer));
@@ -209,7 +210,7 @@ export class PlayerService {
         if (code === 0)
           await fs.promises.copyFile(
             tmpfile,
-            fullpath + "__subtitle_" + +index + ".vtt",
+            fullpath + "__subtitle_" + sub.index + ".vtt",
           );
         await fs.promises.rm(tmpfile);
       });

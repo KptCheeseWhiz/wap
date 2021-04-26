@@ -68,5 +68,5 @@ export const player_subtitles = async (params: {
   name: string;
   path: string;
   sig: string;
-}): Promise<{ label: string; srclang: string }[]> =>
+}): Promise<{ label: string; srclang: string; index: number }[]> =>
   await fetch(toURL(window.location.origin + "/api/player/subtitles", params));

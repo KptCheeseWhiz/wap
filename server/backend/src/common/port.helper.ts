@@ -65,32 +65,18 @@ export default class PortHelper {
 
         const resp = obj[message.event as any](message.content);
         if (resp instanceof Promise)
-          resp
-            .then((nmessage: any) => {
-              self.port.postMessage(
-                {
-                  index: message.index,
-                  threadId,
-                  type: MessageType.RECV,
-                  event: message.event,
-                  content: nmessage === undefined ? null : nmessage,
-                },
-                nmessage?._transferList || [],
-              );
-            })
-            .catch((err: Error) =>
-              self.port.postMessage({
+          resp.then((nmessage: any) => {
+            self.port.postMessage(
+              {
                 index: message.index,
                 threadId,
                 type: MessageType.RECV,
                 event: message.event,
-                error: {
-                  message: err.message,
-                  name: err.name,
-                  stack: err.stack,
-                },
-              }),
+                content: nmessage === undefined ? null : nmessage,
+              },
+              nmessage?._transferList || [],
             );
+          });
         else
           self.port.postMessage(
             {
@@ -201,32 +187,18 @@ export default class PortHelper {
       try {
         const resp = listener(message.content);
         if (resp instanceof Promise)
-          resp
-            .then((nmessage: any) => {
-              self.port.postMessage(
-                {
-                  index: message.index,
-                  threadId,
-                  type: MessageType.RECV,
-                  event: message.event,
-                  content: nmessage === undefined ? null : nmessage,
-                },
-                nmessage?._transferList || [],
-              );
-            })
-            .catch((err: Error) =>
-              self.port.postMessage({
+          resp.then((nmessage: any) => {
+            self.port.postMessage(
+              {
                 index: message.index,
                 threadId,
                 type: MessageType.RECV,
                 event: message.event,
-                error: {
-                  message: err.message,
-                  name: err.name,
-                  stack: err.stack,
-                },
-              }),
+                content: nmessage === undefined ? null : nmessage,
+              },
+              nmessage?._transferList || [],
             );
+          });
         else
           self.port.postMessage(
             {
