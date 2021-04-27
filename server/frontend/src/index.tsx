@@ -16,9 +16,10 @@ ReactDOM.render(
     <MuiThemeProvider
       theme={createMuiTheme({
         palette: {
-          type: window.matchMedia("(prefers-color-scheme: dark)").matches
+          type: "dark",
+          /*window.matchMedia("(prefers-color-scheme: dark)").matches
             ? "dark"
-            : "light",
+            : "light",*/
         },
       })}
     >
@@ -30,5 +31,5 @@ ReactDOM.render(
       </SnackbarProvider>
     </MuiThemeProvider>
   </React.StrictMode>,
-  document.getElementById("root")
+  document.getElementById("root"),
 );

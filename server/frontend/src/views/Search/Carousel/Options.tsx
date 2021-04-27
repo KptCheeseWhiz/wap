@@ -1,7 +1,9 @@
 import React, { useState, useContext } from "react";
+import "./index.css";
 
 import { IconButton, Menu, MenuItem } from "@material-ui/core";
 import { Settings as IconSettings } from "@material-ui/icons";
+import smalltalk from "smalltalk";
 
 import { context } from "helpers/reducer";
 
@@ -14,7 +16,7 @@ function Options() {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = (action: string) => () => {
+  const handleClose = (action: string) => async () => {
     switch (action) {
       case "seasonal":
         dispatch({ type: "SET_CAROUSEL_TYPE", value: "seasonal" });
@@ -24,8 +26,12 @@ function Options() {
           !state.carousel.usernames["mal"] ||
           state.carousel.type === "mal_watching"
         ) {
-          const username = prompt("MyAnimeList username");
+          // Scuffed... but that will do for now
+          const username = await smalltalk
+            .prompt<string>("MyAnimeList username", "")
+            .catch(() => "");
           if (!username) return;
+
           dispatch({
             type: "SET_CAROUSEL",
             value: { type: "mal_watching", usernames: { mal: username } },
