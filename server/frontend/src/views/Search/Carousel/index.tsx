@@ -4,7 +4,7 @@ import { useSnackbar } from "notistack";
 import { Card, CardMedia, Grid, Typography } from "@material-ui/core";
 import MaterialCarousel from "react-material-ui-carousel";
 
-import Options from "./Options";
+import Settings from "./Settings";
 
 import * as jikan from "helpers/jikan";
 import { context } from "helpers/reducer";
@@ -59,6 +59,9 @@ function Carousel() {
 
   return (
     <>
+      <Settings
+        style={{ position: "absolute", top: 5, right: 5, zIndex: 100 }}
+      />
       <MaterialCarousel indicators={false} animation={"slide"} autoPlay={false}>
         {(animes || [])
           .reduce(
@@ -131,7 +134,6 @@ function Carousel() {
             </Card>
           ))}
       </MaterialCarousel>
-      <Options />
     </>
   );
 }

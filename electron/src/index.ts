@@ -1,14 +1,9 @@
 import { join as path_join } from "path";
-import {
-  existsSync as fs_exists,
-  mkdirSync as fs_mkdir,
-  readFileSync as fs_readFileSync,
-} from "fs";
-import * as electron from "electron";
+import { existsSync as fs_exists, mkdirSync as fs_mkdir } from "fs";
+import { app, BrowserWindow, nativeTheme } from "electron";
 import { config as dotenv_config } from "dotenv";
 import { homedir as os_homedir } from "os";
 import { randomBytes as crypto_randomBytes } from "crypto";
-import { merge as _merge } from "lodash";
 dotenv_config({ path: path_join(__dirname, ".env") });
 
 import * as exception from "./utils/exception";
@@ -27,25 +22,15 @@ process.env.HMAC_SECRET = crypto_randomBytes(64).toString("hex");
 import bootstrap from "./app/app";
 
 (async () => {
-  try {
-    const flags = path_join(HOME, "flags");
-    if (fs_exists(flags))
-      _merge(
-        electron.nativeTheme,
-        JSON.parse(fs_readFileSync(flags).toString())
-      );
-  } catch (e) {
-    console.error("error in ~/.wap/flags", e);
-  }
-
-  await electron.app.whenReady();
+  nativeTheme.themeSource = "dark";
+  await app.whenReady();
 
   const SERVER_URL = await bootstrap("127.0.0.1", 0).then((app: any) =>
     app.getUrl()
   );
 
   const createWindow = () => {
-    const mainWindow = new electron.BrowserWindow({
+    const mainWindow = new BrowserWindow({
       width: 1920,
       height: 1080,
       backgroundColor: "#303030",
@@ -69,12 +54,12 @@ import bootstrap from "./app/app";
     mainWindow.on("ready-to-show", () => mainWindow.show());
   };
 
-  electron.app.on("activate", () => {
-    if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
-  electron.app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") electron.app.quit();
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
   });
 
   createWindow();

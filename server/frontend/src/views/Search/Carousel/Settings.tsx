@@ -7,14 +7,17 @@ import smalltalk from "smalltalk";
 
 import { context } from "helpers/reducer";
 
-function Options() {
+function Settings({
+  style,
+}: {
+  style?: React.CSSProperties;
+}) {
   const { state, dispatch } = useContext(context);
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const handleSettingsClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSettingsClick = (event: React.MouseEvent<HTMLButtonElement>) =>
     setAnchorEl(event.currentTarget);
-  };
 
   const handleClose = (action: string) => async () => {
     switch (action) {
@@ -43,17 +46,8 @@ function Options() {
   };
 
   return (
-    <>
-      <IconButton
-        aria-label="close"
-        size="small"
-        style={{
-          position: "fixed",
-          top: 5,
-          right: 5,
-        }}
-        onClick={handleSettingsClick}
-      >
+    <span style={style}>
+      <IconButton aria-label="close" onClick={handleSettingsClick}>
         <IconSettings />
       </IconButton>
       <Menu
@@ -61,6 +55,7 @@ function Options() {
         keepMounted
         open={Boolean(anchorEl)}
         onClose={handleClose("")}
+        disableScrollLock={true}
       >
         <MenuItem onClick={handleClose("seasonal")}>
           {state.carousel.type === "seasonal" && ">"}Seasonal
@@ -69,8 +64,8 @@ function Options() {
           {state.carousel.type === "mal_watching" && ">"}MyAnimeList
         </MenuItem>
       </Menu>
-    </>
+    </span>
   );
 }
 
-export default Options;
+export default Settings;

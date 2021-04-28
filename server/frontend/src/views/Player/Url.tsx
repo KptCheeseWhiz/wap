@@ -25,8 +25,6 @@ function UrlPlayer() {
       sig === undefined
     )
       return;
-
-    window.document.title = name;
     setVideo({ magnet, name, path, sig });
   }, [history.location.search]);
 

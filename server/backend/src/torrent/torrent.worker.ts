@@ -328,8 +328,6 @@ class TorrentWorker {
     try {
       this._pending++;
 
-      Logger(this._id).log(`${magnetUri.infoHash} fetching files`);
-
       const path = path_join(TORRENT_PATH, magnetUri.infoHash);
 
       const torrent =
@@ -343,13 +341,11 @@ class TorrentWorker {
           mime: mime.lookup(name) || "application/octet-stream",
           progress,
         }));
-        Logger(this._id).log(
-          `${magnetUri.infoHash} knew ${files.length} files`,
-        );
         this._pending--;
         return files;
       }
 
+      Logger(this._id).log(`${magnetUri.infoHash} fetching files`);
       return await new Promise<
         {
           name: string;
@@ -586,8 +582,8 @@ class TorrentWorker {
           async () => {
             Logger(this._id).log(`${infoHash} removed`);
             await Promise.all([
-              fs.promises.rm(path, { recursive: true, force: true }),
               fs.promises.rm(path + ".magnet", { force: true }),
+              fs.promises.rm(path, { recursive: true, force: true }),
             ]);
             resolve();
           },
@@ -606,30 +602,29 @@ class TorrentWorker {
   }): Promise<{ name: string; path: string }[]> {
     try {
       this._pending++;
-      return new Promise(async (resolve) => {
+      return new Promise<{ name: string; path: string }[]>(async (resolve) => {
         Logger(this._id).log(`${infoHash} resuming`);
 
         const path = path_join(TORRENT_PATH, infoHash);
 
-        const createdAt = (
-          await fs.promises.stat(path_join(TORRENT_PATH, infoHash + ".magnet"))
-        ).birthtime;
+        const createdAt = (await fs.promises.stat(path + ".magnet")).birthtime;
 
         const magnet = (
-          await fs.promises.readFile(
-            path_join(TORRENT_PATH, infoHash + ".magnet"),
-          )
+          await fs.promises.readFile(path + ".magnet")
         ).toString();
 
         const magnetUri = parseTorrent(magnet);
-        if (!magnetUri.infoHash) return;
+        if (!magnetUri.infoHash) {
+          await fs.promises.rm(path + ".magnet", { force: true });
+          return resolve([]);
+        }
 
         if (createdAt.getTime() + TORRENT_EXPIRATION < Date.now()) {
           Logger(this._id).log(`${infoHash} expired`);
           if (this._dlclient.get(magnet)) this._dlclient.remove(magnet);
           await Promise.all([
-            fs.promises.rm(path_join(TORRENT_PATH, infoHash + ".magnet")),
-            fs.promises.rm(path_join(TORRENT_PATH, infoHash), {
+            fs.promises.rm(path + ".magnet", { force: true }),
+            fs.promises.rm(path, {
               recursive: true,
               force: true,
             }),
@@ -659,7 +654,7 @@ class TorrentWorker {
 
         const resumed: { name: string; path: string }[] = [];
         for (const file of torrent.files)
-          if (await fileExists(path_join(TORRENT_PATH, infoHash, file.path))) {
+          if (await fileExists(path_join(path, file.path))) {
             file.managed = true;
             file.createdAt = createdAt;
             file.expiresAt = new Date(createdAt.getTime() + TORRENT_EXPIRATION);

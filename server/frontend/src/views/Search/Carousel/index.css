@@ -1,8 +1,8 @@
-.smalltalk .page {
+div.smalltalk div.page {
   background-color: #333;
 }
 
-.smalltalk .page header {
+div.smalltalk div.page header {
   text-shadow: none;
   color: white;
 }

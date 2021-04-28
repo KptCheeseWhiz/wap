@@ -89,6 +89,10 @@ function DownloadingButton(
     eventemitter.on("progress", (progress: number) =>
       setProgress(progress * 100),
     );
+
+    return () => {
+      eventemitter?.removeAllListeners();
+    };
   }, [eventemitter]);
 
   const onClick = (ev: React.MouseEvent<HTMLButtonElement>) => {

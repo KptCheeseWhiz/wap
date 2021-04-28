@@ -13,6 +13,7 @@ import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
 
 import { TorrentService } from "@/torrent/torrent.service";
 import { fileExists } from "@/common/utils.helper";
+import Logger from "@/common/logger.helper";
 
 const TORRENT_PATH = process.env.TORRENT_PATH || "./torrents";
 
@@ -45,11 +46,18 @@ export class PlayerService {
 
     const fullpath = path_join(TORRENT_PATH, magnetUri.infoHash, path, name);
 
-    if (await fileExists(fullpath + "__subtitles.json"))
+    if (await fileExists(fullpath + "__subtitles.json")) {
+      Logger(`Player`).log(
+        `${magnetUri.infoHash} ${fullpath} serving subtitles tracks`,
+      );
       return JSON.parse(
         (await fs.promises.readFile(fullpath + "__subtitles.json")).toString(),
       );
+    }
 
+    Logger(`Player`).log(
+      `${magnetUri.infoHash} ${fullpath} extracting subtitles tracks`,
+    );
     const tracks: { label: string; srclang: string; index: number }[] = (
       await new Promise<any[]>((resolve, reject) => {
         const spawn = cp_spawn(
@@ -78,6 +86,10 @@ export class PlayerService {
         srclang: sub.tags.language,
         index: sub.index,
       }));
+
+    Logger(`Player`).log(
+      `${magnetUri.infoHash} ${fullpath} found ${tracks.length} subtitles tracks`,
+    );
 
     await fs.promises.writeFile(
       fullpath + "__subtitles.json",
@@ -135,7 +147,16 @@ export class PlayerService {
                 .catch(() => {}),
             ),
           );
-          if (code !== 0) return reject(new Error(`Exit code ${code}`));
+          if (code !== 0) {
+            Logger(`Player`).warn(
+              `${magnetUri.infoHash} ${fullpath} failed extracting subtitles tracks with code ${code}`,
+            );
+            return reject(new Error(`Exit code ${code}`));
+          }
+
+          Logger(`Player`).log(
+            `${magnetUri.infoHash} ${fullpath} done extracting subtitles tracks`,
+          );
           return resolve(tracks);
         });
       },
@@ -160,8 +181,12 @@ export class PlayerService {
         HttpStatus.NOT_ACCEPTABLE,
       );
 
-    if (await fileExists(fullpath + "__subtitle_" + +index + ".vtt"))
+    if (await fileExists(fullpath + "__subtitle_" + +index + ".vtt")) {
+      Logger(`Player`).log(
+        `${magnetUri.infoHash} ${fullpath} serving subtitles track ${index}`,
+      );
       return fs.createReadStream(fullpath + "__subtitle_" + +index + ".vtt");
+    }
 
     const subs: {
       label: string;
@@ -175,6 +200,9 @@ export class PlayerService {
     if (!sub)
       throw new HttpException("Subtitle not found", HttpStatus.NOT_FOUND);
 
+    Logger(`Player`).log(
+      `${magnetUri.infoHash} ${fullpath} extracting subtitles track ${index}`,
+    );
     return new Promise<Readable>((resolve) => {
       const spawn = cp_spawn(
         ffmpeg_static,
@@ -213,6 +241,15 @@ export class PlayerService {
             fullpath + "__subtitle_" + sub.index + ".vtt",
           );
         await fs.promises.rm(tmpfile);
+
+        if (code !== 0)
+          Logger(`Player`).log(
+            `${magnetUri.infoHash} ${fullpath} done extracting subtitles track ${index}`,
+          );
+        else
+          Logger(`Player`).warn(
+            `${magnetUri.infoHash} ${fullpath} failed extracting subtitles track ${index} with code ${code}`,
+          );
       });
 
       resolve(spawn.stdout);

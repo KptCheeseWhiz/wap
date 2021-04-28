@@ -10,7 +10,7 @@ import { context } from "helpers/reducer";
 function PlayerModal() {
   const { state, dispatch } = useContext(context);
 
-  const handleClose = () => {
+  const handleClose = () =>
     dispatch({
       type: "SET_VIDEO",
       value: {
@@ -21,7 +21,6 @@ function PlayerModal() {
         sig: undefined,
       },
     });
-  };
 
   useEffect(() => {
     // Hide html scrollbar to avoid scrolling while the modal is open

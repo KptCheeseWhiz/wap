@@ -12,6 +12,8 @@ import offline from "views/Offline/offline.gif";
 import Spinner from "components/Spinner";
 import Pad from "components/Pad";
 
+const WINDOW_TITLE = document.title;
+
 function Player({
   video,
 }: {
@@ -35,11 +37,17 @@ function Player({
         .torrent_verify(video)
         .then(() => api.player_subtitles(video))
         .then(setSubtitles)
-        .then(() => setOk(true))
+        .then(() => {
+          document.title = video.name;
+          setOk(true);
+        })
         .catch((e: Error) => {
           if (e.message) enqueueSnackbar(e.message, { variant: "error" });
           setOk(false);
         });
+    return () => {
+      document.title = WINDOW_TITLE;
+    };
   }, [video]);
 
   if (isOk === false)
@@ -94,7 +102,7 @@ function Player({
             })),
           }}
           options={{
-            captions: { active: true, update: true, language: "auto" },
+            captions: { active: true },
             controls: [
               "play-large",
               "play",
