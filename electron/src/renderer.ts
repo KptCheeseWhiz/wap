@@ -6,7 +6,7 @@ import {
 import { join as path_join } from "path";
 import { homedir as os_homedir } from "os";
 
-import * as electron from "electron";
+import { contextBridge } from "electron";
 
 const storage_path = path_join(os_homedir(), ".wap", "storage");
 
@@ -22,8 +22,8 @@ else
     write({});
   }
 
-electron.contextBridge.exposeInMainWorld("ELECTRON", true);
-electron.contextBridge.exposeInMainWorld("storage", {
+contextBridge.exposeInMainWorld("ELECTRON", true);
+contextBridge.exposeInMainWorld("storage", {
   clear: (): void => {
     return write({});
   },

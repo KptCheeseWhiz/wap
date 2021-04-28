@@ -1,8 +1,8 @@
-import * as electron from "electron";
+import { app, dialog } from "electron";
 
 function catchexceptions(err: Error) {
-  if (electron.app.isReady())
-    electron.dialog.showErrorBox("Error", err.message);
+  if (app.isReady())
+    dialog.showErrorBox("Error", err.message);
   console.log("exception", err);
   process.exit(1);
 }
