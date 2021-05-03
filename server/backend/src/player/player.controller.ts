@@ -41,16 +41,17 @@ export class PlayerController {
     const length = await this.torrentService.fileLength(downloadFileDto);
     const ranges: { start: number; end: number }[] | number = rangeParse(
       length,
-      rangeHeader,
+      rangeHeader || "",
     );
-    if (ranges < 0 && rangeHeader)
+
+    if (rangeHeader && (ranges < 0 || (ranges as any[]).length > 1))
       throw new HttpException(
         "Invalid range",
         HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
       );
 
     const { start, end } = ranges[0] || { start: 0, end: length };
-    res.setHeader("content-length", end - start + 1);
+    res.setHeader("content-length", end - start);
     if (end - start !== length - 1) {
       res.setHeader(
         "content-range",

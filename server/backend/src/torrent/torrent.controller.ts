@@ -44,9 +44,10 @@ export class TorrentController {
     });
     const ranges: { start: number; end: number }[] | number = rangeParse(
       length,
-      rangeHeader,
+      rangeHeader || "",
     );
-    if (ranges < 0 && rangeHeader)
+
+    if (rangeHeader && (ranges < 0 || (ranges as any[]).length > 1))
       throw new HttpException(
         "Invalid range",
         HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
@@ -61,7 +62,7 @@ export class TorrentController {
       end,
     });
 
-    res.setHeader("content-length", end - start + 1);
+    res.setHeader("content-length", end - start);
     if (end - start !== length - 1) {
       res.setHeader(
         "content-range",
@@ -69,6 +70,7 @@ export class TorrentController {
       );
       res.status(206);
     }
+
     res.setHeader(
       "content-disposition",
       (downloadFileDto.disposition === "attachment" ? "attachment" : "inline") +
@@ -96,8 +98,8 @@ export class TorrentController {
     const { filename, content } = await this.torrentService.downloadPlaylist(
       downloadPlayListDto,
       {
-        proto: (req.headers["x-forwarded-proto"] || "http") as string,
-        host: (req.headers["x-forwarded-host"] || req.headers.host) as string,
+        proto: (req.protocol || "http") as string,
+        host: (req.headers["x-forwarded-host"] || req.hostname) as string,
       },
     );
 
