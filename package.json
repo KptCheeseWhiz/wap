@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "@types/range-parser": "^1.2.3"
+  },
+  "dependencies": {
+    "range-parser": "^1.2.1"
+  }
+}

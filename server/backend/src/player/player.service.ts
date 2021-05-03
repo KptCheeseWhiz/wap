@@ -82,8 +82,8 @@ export class PlayerService {
     )
       .filter((stream) => stream.codec_type === "subtitle")
       .map((sub) => ({
-        label: sub.tags.title,
-        srclang: sub.tags.language,
+        label: sub.tags.title || sub.tags.language || `label_${sub.index}`,
+        srclang: sub.tags.language || `srclang_${sub.index}`,
         index: sub.index,
       }));
 

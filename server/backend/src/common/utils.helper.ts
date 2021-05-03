@@ -3,8 +3,6 @@ import * as fs from "fs";
 import EventEmitter from "events";
 import { join as path_join, dirname as path_dirname } from "path";
 
-import { HttpException, HttpStatus } from "@nestjs/common";
-
 export const sleep = (ms: number): Promise<void> =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -63,28 +61,6 @@ export const pspawn = async (exec: string, args: string[]) =>
 export const touch = (path: string, mkdir?: boolean) => {
   if (mkdir) fs.mkdirSync(path_dirname(path), { recursive: true });
   fs.closeSync(fs.openSync(path, "a"));
-};
-
-export const parseRange = (
-  range: string,
-  length: number,
-): { start: number; end: number } => {
-  let [start, end]: any[] = (range || "").slice(6).split("-");
-  start = parseInt(start, 10);
-  end = end ? parseInt(end, 10) : length - 1;
-  if (!isNaN(start) && isNaN(end)) end = length - 1;
-  if (isNaN(start) && !isNaN(end)) {
-    start = length - end;
-    end = length - 1;
-  }
-
-  if (start >= length || end >= length)
-    throw new HttpException(
-      "Invalid content range",
-      HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
-    );
-
-  return { start, end };
 };
 
 export const chopArray = <T>(array: T[], blocks: number): T[][] => {
