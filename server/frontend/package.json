@@ -9,6 +9,7 @@
     "postbuild": "shx mv ./build ./out",
     "predeploy": "shx rm -rf ../backend/src/public",
     "deploy": "shx cp -R ./out ../backend/src/public",
+    "postinstall": "npm audit fix || true",
     "dev": "npm run start",
     "start": "react-scripts start",
     "test": "react-scripts test",

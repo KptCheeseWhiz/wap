@@ -13,6 +13,7 @@
     "predist": "shx rm -rf ./dist",
     "dist": "npm run build && npm run build-frontend && shx mv ./out ./dist",
     "postdist": "cd ./dist && npm --prod i",
+    "postinstall": "npm audit fix || true",
     "dev": "nodemon --config nodemon.json",
     "start": "nest start --exec 'node -r ./tsconfig-paths.js -r ts-node/register'",
     "start:dev": "nest start --exec 'node -r ./tsconfig-paths.js -r ts-node/register' --watch",

@@ -6,6 +6,9 @@
     "type": "git",
     "url": "git+https://github.com/KptCheeseWhiz/wap.git"
   },
+  "scripts": {
+    "install": "(cd ./electron && npm i) && (cd ./server/backend && npm i) && (cd ./server/frontend && npm i)"
+  },
   "keywords": [],
   "author": "kptcheesewhiz",
   "license": "ISC",
