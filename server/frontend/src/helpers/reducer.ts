@@ -1,7 +1,5 @@
 import React from "react";
 
-import { merge as _merge } from "lodash";
-
 import * as storage from "helpers/storage";
 
 export interface IState {
@@ -93,23 +91,38 @@ export function reducer(state: IState, action: IAction): IState {
     case "SET_PROGRESS":
       return { ...state, progress: action.value };
     case "SET_QUERY":
-      return _merge(
-        {},
-        state,
-        { search: { query: action.value } },
-        { search: { sort: undefined, order: undefined } },
-      );
+      return {
+        ...state,
+        search: {
+          ...state.search,
+          query: action.value,
+          sort: undefined,
+          order: undefined,
+        },
+      };
     case "SET_PAGE":
-      return _merge({}, state, { search: { page: action.value } });
+      return {
+        ...state,
+        search: {
+          ...state.search,
+          page: action.value,
+        },
+      };
     case "SET_SORT_AND_ORDER":
-      return _merge({}, state, {
-        search: { sort: action.value.sort, order: action.value.order },
-      });
+      return {
+        ...state,
+        search: {
+          ...state.search,
+          sort: action.value.sort,
+          order: action.value.order,
+        },
+      };
     case "SET_FAVORITES":
       storage.set("favorites", action.value);
       return { ...state, favorites: action.value };
     case "SET_VIDEO":
-      return _merge({}, state, {
+      return {
+        ...state,
         video: {
           open: action.value.open,
           magnet: action.value.magnet,
@@ -117,30 +130,28 @@ export function reducer(state: IState, action: IAction): IState {
           path: action.value.path,
           sig: action.value.sig,
         },
-      });
+      };
     case "SET_CAROUSEL":
       storage.set("carousel", action.value);
       return { ...state, carousel: action.value };
     case "SET_CAROUSEL_TYPE":
-      storage.set(
-        "carousel",
-        _merge({}, state.carousel, { type: action.value }),
-      );
-      return _merge({}, state, {
+      storage.set("carousel", { ...state.carousel, type: action.value });
+      return {
+        ...state,
         carousel: {
+          ...state.carousel,
           type: action.value,
         },
-      });
+      };
     case "SET_CAROUSEL_USERNAME":
-      storage.set(
-        "carousel",
-        _merge({}, state.carousel, { usernames: action.value }),
-      );
-      return _merge({}, state, {
+      storage.set("carousel", { ...state.carousel, usernames: action.value });
+      return {
+        ...state,
         carousel: {
+          ...state.carousel,
           usernames: action.value,
         },
-      });
+      };
     default:
       return state;
   }
