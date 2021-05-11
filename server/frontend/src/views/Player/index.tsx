@@ -7,6 +7,7 @@ import "./index.css";
 
 import * as api from "helpers/api";
 import { toURL } from "helpers/fetch";
+import * as storage from "helpers/storage";
 
 import offline from "views/Offline/offline.gif";
 import Spinner from "components/Spinner";
@@ -36,7 +37,19 @@ function Player({
       api
         .torrent_verify(video)
         .then(() => api.player_subtitles(video))
-        .then(setSubtitles)
+        .then((subs) => {
+          if (subs.length > 0) {
+            const plyr = storage.get("plyr") || {};
+            if (plyr.captions) {
+              if (
+                !subs.some((sub) => sub.srclang === plyr.language) ||
+                !plyr.language
+              )
+                storage.set("plyr", { ...plyr, language: subs[0].srclang });
+            }
+          }
+          setSubtitles(subs);
+        })
         .then(() => {
           document.title = video.name;
           setOk(true);
@@ -82,6 +95,7 @@ function Player({
           title={video?.name}
           style={{ width: "100vw", height: "100vh" }}
           source={{
+            title: video.name,
             type: "video",
             // Try them all, maybe it will be in the right format
             sources: [
@@ -91,7 +105,7 @@ function Player({
               src: toURL(window.location.origin + "/api/player/play", video),
               type,
             })),
-            tracks: subtitles.map(({ label, srclang: srcLang, index }) => ({
+            tracks: subtitles.map(({ label, srclang: srcLang, index }, i) => ({
               src: toURL(window.location.origin + "/api/player/subtitle", {
                 ...video,
                 index,
@@ -99,10 +113,12 @@ function Player({
               kind: "subtitles",
               label,
               srcLang,
+              default: !i,
             })),
           }}
           options={{
-            captions: { active: true },
+            captions: { active: true, update: true },
+            invertTime: false,
             controls: [
               "play-large",
               "play",
