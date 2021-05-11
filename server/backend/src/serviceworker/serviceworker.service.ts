@@ -17,7 +17,7 @@ export class ServiceWorkerService {
       }
       return files;
     };
-    return await getFiles(base);
+    return ["/", ...(await getFiles(base).catch(() => []))];
   }
 
   private _cache: string = "";
@@ -52,10 +52,10 @@ self.addEventListener("install", (event) => {
 self.addEventListener("fetch", (event) =>
   event.respondWith(
     caches.open(cacheName).then((cache) =>
-      /^\\/(search|player)?(\\?.+)$/.test(
+      /^\\/(search|player)?(\\?.+)?$/.test(
         event.request.url.slice(self.location.origin.length),
       )
-        ? cache.match("/index.html")
+        ? cache.match("/")
         : cache.match(event.request, { ignoreSearch: true }).then((hit) =>
             hit
               ? hit
@@ -67,7 +67,7 @@ self.addEventListener("fetch", (event) =>
                           "content-type": "application/json",
                         },
                       })
-                    : cache.match("/index.html"),
+                    : cache.match("/"),
                 ),
           ),
     ),
