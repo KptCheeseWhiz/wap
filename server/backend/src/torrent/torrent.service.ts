@@ -14,7 +14,7 @@ import { PreloadFileDto } from "./dto/preloadFile.dto";
 import { WaitDoneDto } from "./dto/waitDone";
 
 import PortHelper from "@/common/port.helper";
-import { LockingReadable } from "@/common/readable";
+import { LockingReadable } from "@/common/readable.helper";
 import Logger, { Context } from "@/common/logger.helper";
 import {
   chopArray,

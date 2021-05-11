@@ -1,8 +1,16 @@
 {
-  "devDependencies": {
-    "@types/range-parser": "^1.2.3"
+  "name": "wap",
+  "version": "1.1.0",
+  "description": "Web Anime Player (or WAP)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KptCheeseWhiz/wap.git"
   },
-  "dependencies": {
-    "range-parser": "^1.2.1"
-  }
+  "keywords": [],
+  "author": "kptcheesewhiz",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KptCheeseWhiz/wap/issues"
+  },
+  "homepage": "https://github.com/KptCheeseWhiz/wap#readme"
 }

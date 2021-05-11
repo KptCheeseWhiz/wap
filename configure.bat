@@ -7,15 +7,15 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 pushd electron\
-if not exist node_modules\ cmd /C "npm i"
+cmd /C "npm i"
 if not exist src\.env copy src\.env.template src\.env
 popd
 
 pushd server\backend\
-if not exist node_modules\ cmd /C "npm i"
+cmd /C "npm i"
 if not exist src\.env copy src\.env.template src\.env
 popd
 
 pushd server\frontend\
-if not exist node_modules\ cmd /C "npm i"
+cmd /C "npm i"
 popd

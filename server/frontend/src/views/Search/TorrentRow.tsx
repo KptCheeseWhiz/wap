@@ -64,6 +64,9 @@ function TorrentRow({
   }, [torrent.magnet]);
 
   const onOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+
+    if (open && !files) return;
     setOpen(!open);
     if (!files) {
       torrent_files({ magnet: torrent.magnet, sig: torrent.sig })
@@ -73,7 +76,6 @@ function TorrentRow({
           setOpen(false);
         });
     }
-    event.stopPropagation();
   };
 
   const onWatchClick = (video: {

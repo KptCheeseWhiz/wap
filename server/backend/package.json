@@ -1,27 +1,26 @@
 {
   "name": "wap-backend",
-  "version": "1.0.2",
   "description": "web anime player backend",
   "author": "kptcheesewhiz",
   "license": "ISC",
   "scripts": {
-    "prebuild-frontend": "shx rm -rf ./src/public",
+    "prebuild-frontend": "(shx test -d ./out || npm run build) && shx rm -rf ./out/public",
     "build-frontend": "cd ../frontend && npm run build",
-    "postbuild-frontend": "shx mv ../frontend/out ./src/public && shx touch ./src/public/.gitkeep",
+    "postbuild-frontend": "shx mv ../frontend/out ./out/public",
     "prebuild": "shx rm -rf ./out",
     "build": "nest build",
-    "postbuild": "shx cp -R package* src/.env src/public out/",
+    "postbuild": "shx cp -R package* out/",
     "predist": "shx rm -rf ./dist",
-    "dist": "npm run build-frontend && npm run build && shx mv ./out ./dist",
+    "dist": "npm run build && npm run build-frontend && shx mv ./out ./dist",
     "postdist": "cd ./dist && npm --prod i",
     "dev": "nodemon --config nodemon.json",
     "start": "nest start --exec 'node -r ./tsconfig-paths.js -r ts-node/register'",
     "start:dev": "nest start --exec 'node -r ./tsconfig-paths.js -r ts-node/register' --watch",
     "start:debug": "nest start --exec 'node -r ./tsconfig-paths.js -r ts-node/register' --debug --watch",
-    "start:prod": "node -r ./tsconfig-paths.js out/index",
+    "start:prod": "node -r ./tsconfig-paths.js out/index.js",
     "start:docker": "node index.js",
     "format": "prettier --write \"src/**/*.ts\"",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
+    "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
     "@nestjs/common": "^7.5.1",

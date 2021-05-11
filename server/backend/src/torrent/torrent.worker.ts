@@ -280,36 +280,49 @@ class TorrentWorker {
     name?: string;
     path?: string;
   }): Promise<number> {
-    // Asking for length means you want to download it
-    const torrent =
-      this._dlclient.get(magnetUri.infoHash) ||
-      (await new Promise<WebTorrent.Torrent>((resolve) =>
-        this._dlclient.add(
-          parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
-          {
-            path: path_join(TORRENT_PATH, magnetUri.infoHash),
-          },
-          async (torrent) => {
-            torrent.files.forEach((file) => file.deselect());
-            torrent.deselect(0, torrent.pieces.length - 1, 0);
+    try {
+      this._pending++;
 
-            await fs.promises.writeFile(
-              path_join(TORRENT_PATH, magnetUri.infoHash + ".magnet"),
-              parseTorrent.toMagnetURI(magnetUri),
-            );
+      // Asking for length means you want to download it
+      const torrent =
+        this._dlclient.get(magnetUri.infoHash) ||
+        (await new Promise<WebTorrent.Torrent>((resolve) =>
+          this._dlclient.add(
+            parseTorrent.toMagnetURI({ ...magnetUri, so: "-1" } as any),
+            {
+              path: path_join(TORRENT_PATH, magnetUri.infoHash),
+            },
+            async (torrent) => {
+              torrent.files.forEach((file) => file.deselect());
+              torrent.deselect(0, torrent.pieces.length - 1, 0);
 
-            resolve(torrent);
-          },
-        ),
-      ));
+              await fs.promises.writeFile(
+                path_join(TORRENT_PATH, magnetUri.infoHash + ".magnet"),
+                parseTorrent.toMagnetURI(magnetUri),
+              );
 
-    if (!name) return torrent.length;
+              resolve(torrent);
+            },
+          ),
+        ));
 
-    const fullpath = path_join(path, name);
-    const file = torrent.files.find((file) => file.path === fullpath);
-    if (!file)
-      throw new Error(`File ${fullpath} not found in ${magnetUri.infoHash}`);
-    return file.length;
+      if (!name) {
+        this._pending--;
+        return torrent.length;
+      }
+
+      const fullpath = path_join(path, name);
+      const file = torrent.files.find((file) => file.path === fullpath);
+      if (!file)
+        throw new Error(`File ${fullpath} not found in ${magnetUri.infoHash}`);
+
+      this._pending--;
+      return file.length;
+    } catch (e) {
+      Logger(this._id).error(e.message, e.stack);
+      this._pending--;
+      throw e;
+    }
   }
 
   async files({
@@ -616,6 +629,7 @@ class TorrentWorker {
         const magnetUri = parseTorrent(magnet);
         if (!magnetUri.infoHash) {
           await fs.promises.rm(path + ".magnet", { force: true });
+          this._pending--;
           return resolve([]);
         }
 
@@ -635,7 +649,8 @@ class TorrentWorker {
 
         if (this._dlclient.get(magnet)) {
           Logger(this._id).log(`${infoHash} already present`);
-          return true;
+          this._pending--;
+          return resolve([]);
         }
 
         const torrent = await new Promise<WebTorrent.Torrent>((resolve) =>

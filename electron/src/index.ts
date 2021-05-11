@@ -1,10 +1,13 @@
 import { join as path_join } from "path";
 import { existsSync as fs_exists, mkdirSync as fs_mkdir } from "fs";
 import { app, BrowserWindow, nativeTheme } from "electron";
-import { config as dotenv_config } from "dotenv";
 import { homedir as os_homedir } from "os";
 import { randomBytes as crypto_randomBytes } from "crypto";
-dotenv_config({ path: path_join(__dirname, ".env") });
+
+if (!process.env.NODE_ENV)
+  process.env.NODE_ENV = process.argv0.endsWith("node")
+    ? "development"
+    : "production";
 
 import * as exception from "./utils/exception";
 exception.on();
@@ -12,12 +15,15 @@ exception.on();
 const HOME = path_join(os_homedir(), ".wap");
 if (!fs_exists(HOME)) fs_mkdir(HOME);
 
-process.env.TORRENT_MAX_WORKERS = "2";
-process.env.TORRENT_PATH = HOME;
-process.env.TORRENT_MAX_RATIO = "0";
-process.env.TORRENT_EXPIRATION = "10800000";
-process.env.TORRENT_PRUNE_INTERVAL = "0";
-process.env.HMAC_SECRET = crypto_randomBytes(64).toString("hex");
+if (!process.env.HMAC_SECRET)
+  process.env.HMAC_SECRET = crypto_randomBytes(64).toString("hex");
+if (!process.env.TORRENT_MAX_WORKERS) process.env.TORRENT_MAX_WORKERS = "2";
+if (!process.env.TORRENT_PATH) process.env.TORRENT_PATH = HOME;
+if (!process.env.TORRENT_MAX_RATIO) process.env.TORRENT_MAX_RATIO = "0";
+if (!process.env.TORRENT_EXPIRATION)
+  process.env.TORRENT_EXPIRATION = "10800000";
+if (!process.env.TORRENT_PRUNE_INTERVAL)
+  process.env.TORRENT_PRUNE_INTERVAL = "0";
 
 import bootstrap from "./app/app";
 

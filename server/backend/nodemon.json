@@ -1,8 +1,5 @@
 {
   "watch": ["src"],
   "ext": "ts,json",
-  "ignore": ["src/**/*.spec.ts"],
-  "events": {
-    "start": "shx mkdir -p out && shx cp src/.env out/.env"
-  }
+  "ignore": ["src/**/*.spec.ts"]
 }

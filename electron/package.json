@@ -9,11 +9,11 @@
     "postdist-electron": "(shx test -d \"./out\" && shx mv ./out ./dist-electron/resources/app) || true",
     "prebuild-backend": "shx rm -rf ./src/app",
     "build-backend": "cd ../server/backend && npm run dist",
-    "postbuild-backend": "shx mv ../server/backend/dist ./src/app && shx rm ./src/app/.env",
+    "postbuild-backend": "shx mv ../server/backend/dist ./src/app",
     "prebuild": "shx rm -rf ./out && npm run build-backend",
     "build": "tsc",
-    "postbuild": "shx cp -R package.json package-lock.json src/.env ./src/app ./out",
-    "build-and-install": "npm run build && (cd ./out && npm --prod i && shx sed -i ENV=development ENV=production .env)",
+    "postbuild": "shx cp -R package.json package-lock.json ./src/app ./out",
+    "build-and-install": "npm run build && (cd ./out && npm --prod i)",
     "predist": "shx rm -rf ./dist",
     "dist": "npm run build-and-install && npm run dist-electron",
     "postdist": "shx mv ./dist-electron ./dist",
@@ -25,9 +25,6 @@
     "postdist-win32": "npm run postdist",
     "just-start": "(shx test -d \"./out\" || npm run build) && electron ./out/index.js",
     "start": "npm run build && electron ./out/index.js"
-  },
-  "dependencies": {
-    "dotenv": "^8.2.0"
   },
   "devDependencies": {
     "@electron/get": "^1.12.4",

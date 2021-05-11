@@ -1,6 +1,5 @@
-import { join as path_join } from "path";
 import { config as dotenv_config } from "dotenv";
-dotenv_config({ path: path_join(__dirname, ".env") });
+if (!process.versions.electron) dotenv_config();
 
 import bootstrap from "./app";
 

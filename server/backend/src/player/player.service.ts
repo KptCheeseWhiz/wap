@@ -147,6 +147,7 @@ export class PlayerService {
                 .catch(() => {}),
             ),
           );
+
           if (code !== 0) {
             Logger(`Player`).warn(
               `${magnetUri.infoHash} ${fullpath} failed extracting subtitles tracks with code ${code}`,
