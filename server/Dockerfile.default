@@ -13,7 +13,6 @@ RUN npm install
 
 # Build the application in /app/out
 COPY ./backend/ /app/
-RUN rm /app/src/.env && touch /app/src/.env
 RUN npm run build
 
 ### FRONTEND
@@ -52,6 +51,7 @@ RUN npm prune
 
 RUN mkdir /app/torrents
 RUN chown node:node /app/torrents
+VOLUME [ "/app/torrents" ]
 
 USER node
 CMD [ "npm", "run", "start:docker" ]
