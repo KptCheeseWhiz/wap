@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import { useSnackbar } from "notistack";
-import Plyr from "plyr-react";
+import Plyr, { HTMLPlyrVideoElement } from "plyr-react";
 import "plyr-react/dist/plyr.css";
 import "./index.css";
 
@@ -27,10 +27,14 @@ function Player({
 }) {
   const { enqueueSnackbar } = useSnackbar();
 
+  const ref = useRef<HTMLPlyrVideoElement>();
   const [isOk, setOk] = useState<boolean | null>(null);
   const [subtitles, setSubtitles] = useState<
     { label: string; srclang: string; index: number }[]
   >([]);
+
+  // Cleanup player after unmount
+  useEffect(() => () => ref?.current?.plyr?.destroy(), []);
 
   useEffect(() => {
     if (video)
@@ -40,16 +44,16 @@ function Player({
         .then((subs) => {
           if (subs.length > 0) {
             const plyr = storage.get("plyr") || {};
-            if (plyr.captions) {
-              if (
-                !subs.some((sub) => sub.srclang === plyr.language) ||
-                !plyr.language
-              )
-                storage.set("plyr", { ...plyr, language: subs[0].srclang });
-            }
+            if (
+              plyr.captions &&
+              (!plyr.language ||
+                !subs.some((sub) => sub.srclang === plyr.language))
+            )
+              storage.set("plyr", { ...plyr, language: subs[0].srclang });
           }
-          setSubtitles(subs);
+          return subs;
         })
+        .then(setSubtitles)
         .then(() => {
           document.title = video.name;
           setOk(true);
@@ -92,15 +96,15 @@ function Player({
       <Pad />
       {isOk === true ? (
         <Plyr
+          ref={ref as any}
           title={video?.name}
           style={{ width: "100vw", height: "100vh" }}
           source={{
             title: video.name,
             type: "video",
-            // Try them all, maybe it will be in the right format
             sources: [
               "video/mp4",
-              "video/webm" /*, "video/ogg", "video/3gp"*/,
+              // "video/webm", "video/ogg", "video/3gp",
             ].map((type) => ({
               src: toURL(window.location.origin + "/api/player/play", video),
               type,
@@ -119,6 +123,13 @@ function Player({
           options={{
             captions: { active: true, update: true },
             invertTime: false,
+            keyboard: {
+              global: true,
+            },
+            tooltips: {
+              controls: true,
+              seek: true,
+            },
             controls: [
               "play-large",
               "play",
