@@ -24,6 +24,8 @@
     "dist-win32": "npm run build-and-install && npm run dist-electron -- --platform=win32",
     "postdist-win32": "npm run postdist",
     "postinstall": "npm audit fix || true",
+    "release-linux": "npm run dist-linux && mv dist wap-linux-x64 && zip -r wap-linux-x64.zip wap-linux-x64 && rm -rf wap-linux-x64",
+    "release-win32": "npm run dist-win32 && mv dist wap-win32-x64 && zip -r wap-win32-x64.zip wap-win32-x64 && rm -rf wap-win32-x64",
     "just-start": "(shx test -d \"./out\" || npm run build) && electron ./out/index.js",
     "start": "npm run build && electron ./out/index.js"
   },
