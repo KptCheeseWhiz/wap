@@ -4,7 +4,7 @@ const storage = (window as any).ELECTRON
 
 export const get = (key: string): any | null => {
   try {
-    JSON.parse(storage.getItem(key) || "null");
+    return JSON.parse(storage.getItem(key) || "null");
   } catch (e) {
     console.warn(`Unable to retreive ${key} from storage`);
     del(key);
