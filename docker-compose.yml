@@ -17,9 +17,8 @@ services:
 
       - TORRENT_MAX_WORKERS=4
       - TORRENT_PATH=./torrents
-      - TORRENT_MAX_RATIO=2
       - TORRENT_PRUNE_INTERVAL=900000 # 15 mins
-      - TORRENT_EXPIRATION=604800000 # 7 days
+      - TORRENT_EXPIRATION=86400000 # 1 day
     volumes:
       - ./data:/app/torrents
     network_mode: "host"
