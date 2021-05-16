@@ -148,16 +148,16 @@ class TorrentWorker {
     end?: number;
   }): Promise<{
     length: number;
-    port: MessagePort;
-    _transferList: TransferListItem[];
+    port: MessagePort | null;
+    _transferList?: TransferListItem[];
   }> {
     try {
       this._pending++;
 
       return await new Promise<{
         length: number;
-        port: MessagePort;
-        _transferList: TransferListItem[];
+        port: MessagePort | null;
+        _transferList?: TransferListItem[];
       }>(async (resolve, reject) => {
         const torrent =
           this._dlclient.get(magnetUri.infoHash) ||
@@ -201,6 +201,13 @@ class TorrentWorker {
             );
         }
         file.expiresAt = new Date(Date.now() + TORRENT_EXPIRATION);
+        if (file.progress === 1) {
+          this._pending--;
+          return resolve({
+            length: file.length,
+            port: null,
+          });
+        }
         file.handles++;
 
         const { port1, port2 } = new MessageChannel();
@@ -325,11 +332,7 @@ class TorrentWorker {
     }
   }
 
-  async files({
-    magnetUri,
-  }: {
-    magnetUri: MagnetUri;
-  }): Promise<
+  async files({ magnetUri }: { magnetUri: MagnetUri }): Promise<
     {
       name: string;
       path: string;

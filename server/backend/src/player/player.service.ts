@@ -96,72 +96,7 @@ export class PlayerService {
       JSON.stringify(tracks),
     );
 
-    return new Promise<{ label: string; srclang: string; index: number }[]>(
-      (resolve, reject) => {
-        const tag = Date.now();
-
-        const spawn = cp_spawn(
-          ffmpeg_static,
-          [
-            "-y",
-            "-i",
-            "-",
-            ...tracks.reduce(
-              (a, { index }) => [
-                ...a,
-                `-map`,
-                `0:${index}`,
-                `-c:${index}`,
-                `webvtt`,
-                `-f`,
-                `webvtt`,
-                fullpath + "__subtitle_" + index + ".vtt_" + tag,
-              ],
-              [],
-            ),
-          ],
-          {
-            stdio: ["pipe", "ignore", "ignore"],
-          },
-        );
-
-        this.torrentService
-          .downloadFile({ magnet, name, path })
-          .then((stream) => stream.pipe(spawn.stdin));
-
-        spawn.stdin.once("error", () => {});
-        spawn.once("exit", async (code) => {
-          if (code === 0)
-            await Promise.all(
-              tracks.map(({ index }) =>
-                fs.promises.copyFile(
-                  fullpath + "__subtitle_" + index + ".vtt_" + tag,
-                  fullpath + "__subtitle_" + index + ".vtt",
-                ),
-              ),
-            );
-          await Promise.all(
-            tracks.map(({ index }) =>
-              fs.promises
-                .rm(fullpath + "__subtitle_" + index + ".vtt_" + tag)
-                .catch(() => {}),
-            ),
-          );
-
-          if (code !== 0) {
-            Logger(`Player`).warn(
-              `${magnetUri.infoHash} ${fullpath} failed extracting subtitles tracks with code ${code}`,
-            );
-            return reject(new Error(`Exit code ${code}`));
-          }
-
-          Logger(`Player`).log(
-            `${magnetUri.infoHash} ${fullpath} done extracting subtitles tracks`,
-          );
-          return resolve(tracks);
-        });
-      },
-    );
+    return tracks;
   }
 
   async getSubtitle({
@@ -181,6 +116,8 @@ export class PlayerService {
         "List the subtitles before fetching one",
         HttpStatus.NOT_ACCEPTABLE,
       );
+
+    await this.torrentService.waitDone({ magnet, name, path });
 
     if (await fileExists(fullpath + "__subtitle_" + +index + ".vtt")) {
       Logger(`Player`).log(
@@ -210,7 +147,7 @@ export class PlayerService {
         [
           "-y",
           "-i",
-          "-",
+          fullpath,
           `-map`,
           `0:${sub.index}`,
           `-c:${sub.index}`,
@@ -220,37 +157,30 @@ export class PlayerService {
           `pipe:1`,
         ],
         {
-          stdio: ["pipe", "pipe", "ignore"],
+          stdio: ["ignore", "pipe", "ignore"],
         },
       );
-
-      this.torrentService
-        .downloadFile({ magnet, name, path })
-        .then((stream) => stream.pipe(spawn.stdin));
 
       const tmpfile =
         fullpath + "__subtitle_" + sub.index + ".vtt_" + Date.now();
 
       const stream = fs.createWriteStream(tmpfile);
       spawn.stdout.on("data", (buffer: Buffer) => stream.write(buffer));
-      spawn.stdin.once("error", () => {});
       spawn.once("exit", async (code) => {
         stream.close();
-        if (code === 0)
+        if (code === 0) {
+          Logger(`Player`).log(
+            `${magnetUri.infoHash} ${fullpath} done extracting subtitles track ${index}`,
+          );
           await fs.promises.copyFile(
             tmpfile,
             fullpath + "__subtitle_" + sub.index + ".vtt",
           );
-        await fs.promises.rm(tmpfile);
-
-        if (code !== 0)
-          Logger(`Player`).log(
-            `${magnetUri.infoHash} ${fullpath} done extracting subtitles track ${index}`,
-          );
-        else
+        } else
           Logger(`Player`).warn(
             `${magnetUri.infoHash} ${fullpath} failed extracting subtitles track ${index} with code ${code}`,
           );
+        await fs.promises.rm(tmpfile);
       });
 
       resolve(spawn.stdout);

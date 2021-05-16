@@ -110,7 +110,7 @@ class TorrentWorkerBridge {
     end: number;
   }): Promise<Readable> {
     const { port, length } = await this._mainPort.send<{
-      port: MessagePort;
+      port: MessagePort | null;
       length: number;
     }>("download", {
       magnetUri,
@@ -124,6 +124,15 @@ class TorrentWorkerBridge {
       this._magnetUris[magnetUri.infoHash] = {
         ...magnetUri,
       };
+
+    if (port === null)
+      return fs.createReadStream(
+        path_join(TORRENT_PATH, magnetUri.infoHash, path, name),
+        {
+          start: start || 0,
+          end: end || length,
+        },
+      );
 
     const dlport = new PortHelper(port);
 
@@ -149,11 +158,9 @@ class TorrentWorkerBridge {
   }
 
   async drop({ magnetUri }: { magnetUri: MagnetUri }) {
-    return await this._mainPort
-      .send<void>("drop", { magnetUri })
-      .then(() => {
-        delete this._magnetUris[magnetUri.infoHash];
-      });
+    return await this._mainPort.send<void>("drop", { magnetUri }).then(() => {
+      delete this._magnetUris[magnetUri.infoHash];
+    });
   }
 
   async length({
@@ -172,11 +179,7 @@ class TorrentWorkerBridge {
     });
   }
 
-  async files({
-    magnetUri,
-  }: {
-    magnetUri: MagnetUri;
-  }): Promise<
+  async files({ magnetUri }: { magnetUri: MagnetUri }): Promise<
     {
       name: string;
       path: string;
@@ -452,9 +455,7 @@ export class TorrentService {
     });
   }
 
-  async listFiles({
-    magnet,
-  }: ListFilesDto): Promise<
+  async listFiles({ magnet }: ListFilesDto): Promise<
     {
       name: string;
       path: string;
