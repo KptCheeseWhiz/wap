@@ -1,4 +1,4 @@
-import fetch, { toURL } from "helpers/fetch";
+import { fetch, toURL } from "helpers/http";
 
 export const ping = async (): Promise<boolean> =>
   await fetch<{ pong: number }>("/api/ping")

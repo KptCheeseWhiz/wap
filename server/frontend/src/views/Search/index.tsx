@@ -22,7 +22,7 @@ import PlayerModal from "views/Search/PlayerModal";
 
 import { context } from "helpers/reducer";
 import * as api from "helpers/api";
-import { toQuery } from "helpers/fetch";
+import { toQuery } from "helpers/http";
 
 import LoadingBar from "components/LoadingBar";
 

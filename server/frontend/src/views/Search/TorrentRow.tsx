@@ -22,7 +22,7 @@ import PreloadingButton from "components/PreloadingButton";
 
 import { context } from "helpers/reducer";
 import { torrent_files } from "helpers/api";
-import { toURL } from "helpers/fetch";
+import { toURL } from "helpers/http";
 
 function TorrentRow({
   torrent,
@@ -96,8 +96,8 @@ function TorrentRow({
     path: string;
     length: number;
     progress: number;
-  }) => () => {
-    if (!files) return;
+  }) => (canceled: boolean) => {
+    if (!files || canceled) return;
     const nfiles = [...files];
     const file = nfiles.find(
       (file) => file.name === name && file.path === path,
@@ -207,7 +207,7 @@ function TorrentRow({
                                       sig: torrent.sig,
                                     },
                                   )}
-                                  onEnded={onEnded(file)}
+                                  onEnded={onEnded(file) as any}
                                 />
                               )}
                             </>

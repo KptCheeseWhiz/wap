@@ -6,7 +6,7 @@ import "plyr-react/dist/plyr.css";
 import "./index.css";
 
 import * as api from "helpers/api";
-import { toURL } from "helpers/fetch";
+import { toURL } from "helpers/http";
 import * as storage from "helpers/storage";
 
 import offline from "views/Offline/offline.gif";

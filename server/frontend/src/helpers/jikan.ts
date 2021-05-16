@@ -1,6 +1,6 @@
 import { pick } from "lodash";
 
-import fetch from "helpers/fetch";
+import { fetch } from "helpers/http";
 import * as storage from "helpers/storage";
 
 export interface IAnime {
