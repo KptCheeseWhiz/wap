@@ -1,4 +1,5 @@
 import { NestFactory } from "@nestjs/core";
+import { NestExpressApplication } from "@nestjs/platform-express";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
 
@@ -6,8 +7,9 @@ import { AppModule } from "@/app/app.module";
 import { HttpExceptionFilter } from "@/filters/http-exception.filter";
 
 export default async (host: string, port: number) => {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.set("trust proxy", process.env.PROXIES);
   app.use(
     helmet({
       contentSecurityPolicy: {

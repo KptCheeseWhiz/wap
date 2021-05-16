@@ -98,8 +98,8 @@ export class TorrentController {
     const { filename, content } = await this.torrentService.downloadPlaylist(
       downloadPlayListDto,
       {
-        proto: (req.protocol || "http") as string,
-        host: (req.headers["x-forwarded-host"] || req.hostname) as string,
+        proto: req.protocol,
+        host: req.hostname,
       },
     );
 
