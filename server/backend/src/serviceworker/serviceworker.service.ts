@@ -28,24 +28,20 @@ const cacheName = "wap-pwa";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .delete(cacheName)
-      .then(() =>
-        caches
-          .open(cacheName)
-          .then((cache) =>
-            Promise.all(
-              [
-                ${
-                  (await this.getPublicFiles())
-                    .filter((f) => !f.endsWith(".map"))
-                    .map((f) => `"${f}"`)
-                    .join(",\n                ") + ","
-                }
-              ].map((f) => cache.add(f)),
-            ),
-          ),
+    caches.delete(cacheName).then(() =>
+      caches.open(cacheName).then((cache) =>
+        Promise.all(
+          [
+            ${
+              (await this.getPublicFiles())
+                .filter((f) => !f.endsWith(".map"))
+                .map((f) => `"${f}"`)
+                .join(",\n            ") + ","
+            }
+          ].map((f) => cache.add(f)),
+        ),
       ),
+    ),
   );
 });
 
@@ -59,16 +55,22 @@ self.addEventListener("fetch", (event) =>
         : cache.match(event.request, { ignoreSearch: true }).then((hit) =>
             hit
               ? hit
-              : fetch(event.request).catch(() =>
-                  event.request.url === self.location.origin + "/api/ping"
-                    ? new Response('{"pong":false}', {
-                        status: 200,
-                        headers: {
-                          "content-type": "application/json",
-                        },
-                      })
-                    : cache.match("/"),
-                ),
+              : fetch(event.request)
+                  .then((resp) =>
+                    event.request.url.startsWith("https://cdn.")
+                      ? cache.put(event.request, resp.clone()).then(() => resp)
+                      : resp,
+                  )
+                  .catch(() =>
+                    event.request.url === self.location.origin + "/api/ping"
+                      ? new Response('{"pong":false}', {
+                          status: 200,
+                          headers: {
+                            "content-type": "application/json",
+                          },
+                        })
+                      : cache.match("/"),
+                  ),
           ),
     ),
   ),
