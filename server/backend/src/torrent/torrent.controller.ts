@@ -63,7 +63,7 @@ export class TorrentController {
     });
 
     res.setHeader("content-length", end - start);
-    if (end - start !== length) {
+    if (rangeHeader) {
       res.setHeader(
         "content-range",
         "bytes " + start + "-" + end + "/" + length,
