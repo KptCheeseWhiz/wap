@@ -122,7 +122,11 @@ export class SearcherService {
     url.searchParams.append("s", sort || "");
     url.searchParams.append("o", order || "desc");
 
-    const window = await fetch(url)
+    const window = await fetch(url, {
+      headers: {
+        "User-Agent": "WAP (+https://github.com/KptCheeseWhiz/wap)",
+      },
+    })
       .then((resp) => resp.text())
       .then((text) => new JSDOM(text))
       .then(({ window }) => window);
@@ -151,26 +155,35 @@ export class SearcherService {
       page,
       per_page: 75,
       results: trs.map((tr, i) => {
-        const tds = [...tr.querySelectorAll("td")] as HTMLTableCellElement[];
+        const [
+          td_category,
+          td_title,
+          td_dl_mg,
+          td_size,
+          td_date,
+          td_seeders,
+          td_leechers,
+          td_downloads,
+        ] = [...tr.querySelectorAll("td")] as HTMLTableCellElement[];
 
-        const category = tds[0].querySelector("a")?.getAttribute("title");
-        const title = tds[1]
+        const category = td_category.querySelector("a")?.getAttribute("title");
+        const title = td_title
           .querySelector("a:last-child")
           ?.getAttribute("title");
-        const download = tds[2]
+        const download = td_dl_mg
           .querySelector("a:first-child")
           ?.getAttribute("href");
 
         const magnet = decodeURIComponent(
-          tds[2].querySelector("a:last-child")?.getAttribute("href"),
+          td_dl_mg.querySelector("a:last-child")?.getAttribute("href"),
         );
-        const size = tds[3].textContent;
+        const size = td_size.textContent;
         const date = new Date(
-          Number(tds[4].getAttribute("data-timestamp") + "000"),
+          Number(td_date.getAttribute("data-timestamp")) * 1000,
         );
-        const seeders = Number(tds[5].textContent);
-        const leechers = Number(tds[6].textContent);
-        const downloads = Number(tds[7].textContent);
+        const seeders = Number(td_seeders.textContent);
+        const leechers = Number(td_leechers.textContent);
+        const downloads = Number(td_downloads.textContent);
 
         if (
           !category ||
