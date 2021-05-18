@@ -52,7 +52,7 @@ export class PlayerController {
 
     const { start, end } = ranges[0] || { start: 0, end: length };
     res.setHeader("content-length", end - start);
-    if (rangeHeader) {
+    if (end - start !== length - 1) {
       res.setHeader(
         "content-range",
         "bytes " + start + "-" + end + "/" + length,
