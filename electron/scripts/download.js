@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import unzipper from "unzipper";
 import { downloadArtifact } from "@electron/get";
+import patch from "electron-evil-feature-patcher";
 import yargs from "yargs-parser";
 import * as npm from "../package.json";
 
@@ -34,6 +35,7 @@ downloadArtifact({
   .then(async () => {
     if (process.platform !== "win32" && !isWin32)
       await fs.promises.chmod(path.join(out, "electron"), 0o755);
+    patch({ path: path.join(out, "electron" + (isWin32 ? ".exe" : "")) });
     await fs.promises.rename(
       path.join(out, "electron" + (isWin32 ? ".exe" : "")),
       path.join(out, exec + (isWin32 ? ".exe" : ""))
