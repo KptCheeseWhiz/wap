@@ -7,12 +7,11 @@ fi
 
 cd ./electron
 npm i
-[ ! -f "./src/.env" ] && cp ./src/.env.template ./src/.env
 cd - 1>/dev/null
 
 cd ./server/backend
 npm i
-[ ! -f "./src/.env" ] && cp ./src/.env.template ./src/.env
+[ ! -f ".env" ] && cp .env.template .env
 cd - 1>/dev/null
 
 cd ./server/frontend

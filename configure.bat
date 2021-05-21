@@ -8,12 +8,11 @@ if %ERRORLEVEL% NEQ 0 (
 
 pushd electron\
 cmd /C "npm i"
-if not exist src\.env copy src\.env.template src\.env
 popd
 
 pushd server\backend\
 cmd /C "npm i"
-if not exist src\.env copy src\.env.template src\.env
+if not exist .env copy .env.template .env
 popd
 
 pushd server\frontend\
