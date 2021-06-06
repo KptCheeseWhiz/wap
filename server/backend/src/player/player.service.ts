@@ -157,12 +157,14 @@ export class PlayerService {
           `pipe:1`,
         ],
         {
-          stdio: ["ignore", "pipe", "ignore"],
+          stdio: ["ignore", "pipe", "pipe"],
         },
       );
 
       const tmpfile =
         fullpath + "__subtitle_" + sub.index + ".vtt_" + Date.now();
+
+      spawn.stderr.pipe(fs.createWriteStream(tmpfile + "_ffmpeg"));
 
       const stream = fs.createWriteStream(tmpfile);
       spawn.stdout.on("data", (buffer: Buffer) => stream.write(buffer));

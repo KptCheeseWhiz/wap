@@ -79,7 +79,6 @@ export class PlayerController {
 
   @Get("subtitle")
   @Header("content-type", "text/vtt")
-  @UseGuards(CacheGuard)
   async getSubtitle(
     @Query()
     getSubtitleDto: GetSubtitleDto & { sig: string },
