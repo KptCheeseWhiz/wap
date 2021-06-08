@@ -13,15 +13,17 @@ import { Response } from "express";
 import rangeParse from "range-parser";
 
 import { PlayerService } from "./player.service";
+import { GetFFProbeDto } from "./dto/getFFProbe.dto";
 import { GetSubtitleDto } from "./dto/getSubtitle.dto";
 import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
 
 import { TorrentService } from "@/torrent/torrent.service";
 import { DownloadFileDto } from "@/torrent/dto/downloadFile.dto";
-import { MagnetSignGuard } from "@/guards/magnetSign.guard";
 import { CacheGuard } from "@/guards/cache.guard";
+import { MagnetSignGuard } from "@/guards/magnetSign.guard";
 
 @UseGuards(MagnetSignGuard)
+@UseGuards(CacheGuard)
 @Controller("/api/player")
 export class PlayerController {
   constructor(
@@ -70,7 +72,6 @@ export class PlayerController {
   }
 
   @Get("subtitles")
-  @UseGuards(CacheGuard)
   async getSubtitles(
     @Query() getSubtitlesDto: GetSubtitlesDto & { sig: string },
   ) {
@@ -85,5 +86,13 @@ export class PlayerController {
     @Res() res: Response,
   ) {
     (await this.playerService.getSubtitle(getSubtitleDto)).pipe(res);
+  }
+
+  @Get("ffprobe")
+  async getProbe(
+    @Query()
+    getFFProbe: GetFFProbeDto & { sig: string },
+  ) {
+    return await this.playerService.ffprobe(getFFProbe);
   }
 }

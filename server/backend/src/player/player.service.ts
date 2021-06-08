@@ -8,6 +8,7 @@ import parseTorrent from "parse-torrent";
 import ffmpeg_static from "ffmpeg-static";
 import { path as ffprobe_static } from "ffprobe-static";
 
+import { GetFFProbeDto } from "./dto/getFFProbe.dto";
 import { GetSubtitleDto } from "./dto/getSubtitle.dto";
 import { GetSubtitlesDto } from "./dto/getSubtitles.dto";
 
@@ -25,6 +26,70 @@ export class PlayerService {
     );
   }
 
+  async ffprobe({ magnet, name, path }: GetFFProbeDto): Promise<
+    {
+      index: number;
+      codec_name: string;
+      codec_long_name: string;
+      codec_type: string;
+      codec_time_base: string;
+      codec_tag_string: string;
+      codec_tag: string;
+      disposition: any;
+      tags: any;
+      [key: string]: any;
+    }[]
+  > {
+    const magnetUri = parseTorrent(magnet);
+    if (!magnetUri)
+      throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
+
+    const fullpath = path_join(TORRENT_PATH, magnetUri.infoHash, path, name);
+    if (await fileExists(fullpath + "__ffprobe.json"))
+      return JSON.parse(
+        (await fs.promises.readFile(fullpath + "__ffprobe.json")).toString(),
+      );
+
+    const files = await this.torrentService.listFiles({ magnet });
+    const file = files.find((file) => file.name === name && file.path === path);
+    if (!file)
+      throw new HttpException(
+        `File ${path_join(path, name)} not found in ${magnetUri.infoHash}`,
+        HttpStatus.NOT_FOUND,
+      );
+
+    if (file.mime.indexOf("video/") !== 0)
+      throw new HttpException(
+        `File ${path_join(path, name)} is not a video`,
+        HttpStatus.NOT_ACCEPTABLE,
+      );
+
+    await this.torrentService.waitDone({ magnet, name, path });
+
+    const streams: any[] = await new Promise<any[]>((resolve, reject) => {
+      const spawn = cp_spawn(
+        ffprobe_static,
+        ["-show_streams", "-print_format", "json", "-i", fullpath],
+        {
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      );
+
+      let out = "";
+      spawn.stdout.on("data", (buffer: Buffer) => (out += buffer.toString()));
+      spawn
+        .once("error", (err) => reject(err))
+        .once("close", () => resolve(JSON.parse(out).streams));
+    });
+
+    await fs.promises.writeFile(
+      fullpath + "__ffprobe.json",
+      JSON.stringify(streams),
+    );
+
+    return streams;
+  }
+
   async getSubtitles({
     magnet,
     name,
@@ -36,16 +101,7 @@ export class PlayerService {
     if (!magnetUri)
       throw new HttpException("Invalid magnet", HttpStatus.BAD_REQUEST);
 
-    const files = await this.torrentService.listFiles({ magnet });
-    const file = files.find((file) => file.name === name && file.path === path);
-    if (!file)
-      throw new HttpException(
-        `File ${path_join(path, name)} not found in ${magnetUri.infoHash}`,
-        HttpStatus.NOT_FOUND,
-      );
-
     const fullpath = path_join(TORRENT_PATH, magnetUri.infoHash, path, name);
-
     if (await fileExists(fullpath + "__subtitles.json")) {
       Logger(`Player`).log(
         `${magnetUri.infoHash} ${fullpath} serving subtitles tracks`,
@@ -55,38 +111,32 @@ export class PlayerService {
       );
     }
 
+    const files = await this.torrentService.listFiles({ magnet });
+    const file = files.find((file) => file.name === name && file.path === path);
+    if (!file)
+      throw new HttpException(
+        `File ${path_join(path, name)} not found in ${magnetUri.infoHash}`,
+        HttpStatus.NOT_FOUND,
+      );
+
+    if (file.mime.indexOf("video/") !== 0)
+      throw new HttpException(
+        `File ${path_join(path, name)} is not a video`,
+        HttpStatus.NOT_ACCEPTABLE,
+      );
+
     Logger(`Player`).log(
       `${magnetUri.infoHash} ${fullpath} extracting subtitles tracks`,
     );
-    const tracks: { label: string; srclang: string; index: number }[] = (
-      await new Promise<any[]>((resolve, reject) => {
-        const spawn = cp_spawn(
-          ffprobe_static,
-          ["-show_streams", "-print_format", "json", "-i", "-"],
-          {
-            stdio: ["pipe", "pipe", "ignore"],
-          },
-        );
 
-        this.torrentService
-          .downloadFile({ magnet, name, path })
-          .then((stream) => stream.pipe(spawn.stdin));
-
-        let out = "";
-        spawn.stdout.on("data", (buffer: Buffer) => (out += buffer.toString()));
-        spawn.stdin.once("error", () => {});
-        spawn
-          .once("error", (err) => reject(err))
-          .once("close", () => resolve(JSON.parse(out).streams));
-      })
-    )
+    const streams = await this.ffprobe({ magnet, name, path });
+    const tracks: { label: string; srclang: string; index: number }[] = streams
       .filter((stream) => stream.codec_type === "subtitle")
       .map((sub) => ({
         label: sub.tags.title || sub.tags.language || `label_${sub.index}`,
         srclang: sub.tags.language || `srclang_${sub.index}`,
         index: sub.index,
       }));
-
     Logger(`Player`).log(
       `${magnetUri.infoHash} ${fullpath} found ${tracks.length} subtitles tracks`,
     );
@@ -116,8 +166,6 @@ export class PlayerService {
         "List the subtitles before fetching one",
         HttpStatus.NOT_ACCEPTABLE,
       );
-
-    await this.torrentService.waitDone({ magnet, name, path });
 
     if (await fileExists(fullpath + "__subtitle_" + +index + ".vtt")) {
       Logger(`Player`).log(
@@ -157,14 +205,12 @@ export class PlayerService {
           `pipe:1`,
         ],
         {
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: ["ignore", "pipe", "ignore"],
         },
       );
 
       const tmpfile =
         fullpath + "__subtitle_" + sub.index + ".vtt_" + Date.now();
-
-      spawn.stderr.pipe(fs.createWriteStream(tmpfile + "_ffmpeg"));
 
       const stream = fs.createWriteStream(tmpfile);
       spawn.stdout.on("data", (buffer: Buffer) => stream.write(buffer));

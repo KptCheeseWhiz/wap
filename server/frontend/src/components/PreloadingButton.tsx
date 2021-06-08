@@ -12,8 +12,8 @@ function PreloadingButton(
 ) {
   const { enqueueSnackbar } = useSnackbar();
 
-  const [progress, setProgress] = useState(0);
-  const [eventemitter, setEventEmitter] = useState(null as null | EventEmitter);
+  const [progress, setProgress] = useState<number>(0);
+  const [eventemitter, setEventEmitter] = useState<EventEmitter | null>(null);
 
   useEffect(() => {
     if (!eventemitter) return;

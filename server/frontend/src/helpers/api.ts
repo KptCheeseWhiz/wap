@@ -70,3 +70,23 @@ export const player_subtitles = async (params: {
   sig: string;
 }): Promise<{ label: string; srclang: string; index: number }[]> =>
   await fetch(toURL(window.location.origin + "/api/player/subtitles", params));
+
+export const player_ffprobe = async (params: {
+  magnet: string;
+  name: string;
+  path: string;
+  sig: string;
+}): Promise<
+  {
+    index: number;
+    codec_name: string;
+    codec_long_name: string;
+    codec_type: string;
+    codec_time_base: string;
+    codec_tag_string: string;
+    codec_tag: string;
+    disposition: any;
+    tags: any;
+    [key: string]: any;
+  }[]
+> => await fetch(toURL(window.location.origin + "/api/player/ffprobe", params));
