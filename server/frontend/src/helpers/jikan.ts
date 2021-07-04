@@ -82,12 +82,14 @@ export const watching = async (params: {
     )
   ).anime;
 
-  return (await schedule()).filter((anime) => {
+  return myanimes;
+
+  /*return (await schedule()).filter((anime) => {
     const index = myanimes.findIndex((a: IAnime) => a.mal_id === anime.mal_id);
     if (index !== -1) {
       myanimes.splice(index, 1);
       return true;
     }
     return false;
-  });
+  });*/
 };
